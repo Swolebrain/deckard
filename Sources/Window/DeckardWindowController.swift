@@ -108,58 +108,33 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             splitView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
         ])
 
-        // Sidebar
+        // Sidebar: terminals at top, claude sessions at bottom
         sidebarView.translatesAutoresizingMaskIntoConstraints = false
         sidebarView.wantsLayer = true
         sidebarView.layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.95).cgColor
 
-        // Terminals stack (top of sidebar)
+        // Top zone: terminal tabs
         sidebarStackView.orientation = .vertical
         sidebarStackView.alignment = .leading
         sidebarStackView.spacing = 1
         sidebarStackView.translatesAutoresizingMaskIntoConstraints = false
+        sidebarView.addSubview(sidebarStackView)
 
-        // Claude sessions stack (bottom of sidebar)
+        // Bottom zone: claude sessions
         claudeStackView.orientation = .vertical
         claudeStackView.alignment = .leading
         claudeStackView.spacing = 1
         claudeStackView.translatesAutoresizingMaskIntoConstraints = false
-
-        // Container: terminals at top, spacer, claude at bottom
-        let sidebarContent = NSView()
-        sidebarContent.translatesAutoresizingMaskIntoConstraints = false
-        sidebarContent.addSubview(sidebarStackView)
-        sidebarContent.addSubview(claudeStackView)
+        sidebarView.addSubview(claudeStackView)
 
         NSLayoutConstraint.activate([
-            sidebarStackView.topAnchor.constraint(equalTo: sidebarContent.topAnchor),
-            sidebarStackView.leadingAnchor.constraint(equalTo: sidebarContent.leadingAnchor),
-            sidebarStackView.trailingAnchor.constraint(equalTo: sidebarContent.trailingAnchor),
+            sidebarStackView.topAnchor.constraint(equalTo: sidebarView.topAnchor, constant: 8),
+            sidebarStackView.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
+            sidebarStackView.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
 
-            claudeStackView.bottomAnchor.constraint(equalTo: sidebarContent.bottomAnchor),
-            claudeStackView.leadingAnchor.constraint(equalTo: sidebarContent.leadingAnchor),
-            claudeStackView.trailingAnchor.constraint(equalTo: sidebarContent.trailingAnchor),
-
-            // Ensure content is at least as tall as the scroll view
-            sidebarContent.widthAnchor.constraint(equalTo: sidebarScrollView.widthAnchor),
-        ])
-
-        sidebarScrollView.documentView = sidebarContent
-        sidebarScrollView.hasVerticalScroller = true
-        sidebarScrollView.autohidesScrollers = true
-        sidebarScrollView.scrollerStyle = .overlay
-        sidebarScrollView.drawsBackground = false
-        sidebarScrollView.translatesAutoresizingMaskIntoConstraints = false
-        sidebarView.addSubview(sidebarScrollView)
-
-        NSLayoutConstraint.activate([
-            sidebarScrollView.topAnchor.constraint(equalTo: sidebarView.topAnchor, constant: 8),
-            sidebarScrollView.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor, constant: -8),
-            sidebarScrollView.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
-            sidebarScrollView.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
-
-            // Content height fills the scroll view (so claude tabs anchor to visible bottom)
-            sidebarContent.heightAnchor.constraint(greaterThanOrEqualTo: sidebarScrollView.heightAnchor),
+            claudeStackView.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor, constant: -8),
+            claudeStackView.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
+            claudeStackView.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
         ])
 
         terminalContainerView.translatesAutoresizingMaskIntoConstraints = false
@@ -167,9 +142,15 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         splitView.addArrangedSubview(sidebarView)
         splitView.addArrangedSubview(terminalContainerView)
 
+        // Ensure sidebar has a reasonable width
+        sidebarView.widthAnchor.constraint(greaterThanOrEqualToConstant: 80).isActive = true
+
         DispatchQueue.main.async { [self] in
             splitView.setPosition(sidebarWidth, ofDividerAt: 0)
         }
+
+        // Force window to show
+        window?.makeKeyAndOrderFront(nil)
     }
 
     // MARK: - NSSplitViewDelegate
