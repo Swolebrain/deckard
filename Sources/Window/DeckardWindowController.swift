@@ -235,10 +235,10 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             terminalContainerView.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
             terminalContainerView.leadingAnchor.constraint(equalTo: rightPane.leadingAnchor),
             terminalContainerView.trailingAnchor.constraint(equalTo: rightPane.trailingAnchor),
-            terminalContainerView.bottomAnchor.constraint(equalTo: contextStatusBar.topAnchor),
+            terminalContainerView.bottomAnchor.constraint(equalTo: rightPane.bottomAnchor),
         ])
 
-        // Context usage status bar at the bottom
+        // Context usage status bar (overlays the bottom of the terminal)
         contextStatusBar.translatesAutoresizingMaskIntoConstraints = false
         contextStatusBar.font = .monospacedSystemFont(ofSize: 10, weight: .regular)
         contextStatusBar.textColor = .secondaryLabelColor
