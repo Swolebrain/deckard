@@ -197,14 +197,14 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         }
 
         // For Claude tabs, launch claude via shell.
-        // "clear" hides the login message, "exec" replaces the shell.
-        // If resuming, pass --resume to continue the previous session.
+        // "clear" hides the login message. No "exec" so the shell survives
+        // if claude exits (e.g., failed resume) — user gets a shell prompt.
         let initialInput: String?
         if claude {
-            if sessionIdToResume != nil {
-                initialInput = "clear && exec claude --resume \(tab.sessionId!)\n"
+            if let sid = sessionIdToResume {
+                initialInput = "clear; claude --resume \(sid)\n"
             } else {
-                initialInput = "clear && exec claude\n"
+                initialInput = "clear; claude\n"
             }
         } else {
             initialInput = nil
