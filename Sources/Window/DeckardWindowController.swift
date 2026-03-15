@@ -804,6 +804,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         } else {
             project.selectedTabIndex = min(idx, project.tabs.count - 1)
             rebuildTabBar()
+            rebuildSidebar()
             showTab(project.tabs[project.selectedTabIndex])
         }
         saveState()
@@ -878,6 +879,7 @@ class TabRowView: NSView, NSTextFieldDelegate, NSDraggingSource {
         closeButton.isBordered = false
         closeButton.font = .systemFont(ofSize: 13)
         closeButton.contentTintColor = .tertiaryLabelColor
+        closeButton.toolTip = "Close Project (\u{21E7}\u{2318}W)"
 
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
@@ -934,12 +936,24 @@ class TabRowView: NSView, NSTextFieldDelegate, NSDraggingSource {
             dot.wantsLayer = true
             dot.layer?.cornerRadius = 3.5
             dot.layer?.backgroundColor = Self.colorForBadge(state).cgColor
+            dot.toolTip = Self.tooltipForBadge(state)
             dot.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
                 dot.widthAnchor.constraint(equalToConstant: 7),
                 dot.heightAnchor.constraint(equalToConstant: 7),
             ])
             badgeContainer.addArrangedSubview(dot)
+        }
+    }
+
+    static func tooltipForBadge(_ state: TabItem.BadgeState) -> String {
+        switch state {
+        case .none: return ""
+        case .idle: return "Idle"
+        case .thinking: return "Thinking..."
+        case .waitingForInput: return "Waiting for input"
+        case .needsPermission: return "Needs permission"
+        case .error: return "Error"
         }
     }
 
