@@ -67,6 +67,26 @@ struct DefaultTabConfig {
 
 let deckardProjectDragType = NSPasteboard.PasteboardType("com.deckard.project-reorder")
 
+/// Custom window that prevents title bar dragging over the tab bar area.
+class DeckardWindow: NSWindow {
+    var tabBarView: NSView?
+
+    // The title bar intercepts mouseDown for window dragging.
+    // We prevent this by making the window non-movable when the
+    // mouse is over the tab bar, then re-enabling it.
+    override func mouseDown(with event: NSEvent) {
+        if let tabBar = tabBarView {
+            let loc = tabBar.convert(event.locationInWindow, from: nil)
+            if tabBar.bounds.contains(loc) {
+                // Forward to the content view instead of allowing window drag
+                contentView?.mouseDown(with: event)
+                return
+            }
+        }
+        super.mouseDown(with: event)
+    }
+}
+
 class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     private let ghosttyApp: DeckardGhosttyApp
     private var projects: [ProjectItem] = []
@@ -93,7 +113,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     init(ghosttyApp: DeckardGhosttyApp) {
         self.ghosttyApp = ghosttyApp
 
-        let window = NSWindow(
+        let window = DeckardWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1100, height: 700),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
@@ -280,6 +300,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             sidebarInitialized = true
         }
 
+        (window as? DeckardWindow)?.tabBarView = tabBar
         window?.makeKeyAndOrderFront(nil)
     }
 
