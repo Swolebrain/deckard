@@ -58,6 +58,8 @@ class ProjectPicker: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSTex
 
         tableView.dataSource = self
         tableView.delegate = self
+        tableView.target = self
+        tableView.doubleAction = #selector(tableDoubleClicked)
         searchField.delegate = self
 
         // Layout
@@ -231,7 +233,10 @@ class ProjectPicker: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSTex
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
-        // Double-click to confirm
+    }
+
+    @objc private func tableDoubleClicked() {
+        confirm()
     }
 
     // MARK: - Load Projects

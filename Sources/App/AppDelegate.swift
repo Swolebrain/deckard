@@ -168,6 +168,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private let projectPicker = ProjectPicker()
 
+    func openProjectPicker() {
+        openProject()
+    }
+
     @objc private func openProject() {
         projectPicker.show(relativeTo: windowController?.window) { [weak self] path in
             guard let path = path else { return }

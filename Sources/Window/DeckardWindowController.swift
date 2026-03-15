@@ -72,6 +72,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     private let tabBar = NSStackView()          // horizontal tab bar
     private let terminalContainerView = NSView()
     private var currentTerminalView: TerminalNSView?
+    private var welcomeLabel: NSTextField?
 
     private let sidebarWidth: CGFloat = 210
     private var isRestoring = false
@@ -99,6 +100,13 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
         setupUI()
         restoreOrCreateInitial()
+
+        // If no projects after restore, auto-show the project picker
+        if projects.isEmpty {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                AppDelegate.shared?.openProjectPicker()
+            }
+        }
 
         SessionManager.shared.startAutosave { [weak self] in
             self?.captureState() ?? DeckardState()
@@ -138,10 +146,21 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         sidebarStackView.translatesAutoresizingMaskIntoConstraints = false
         sidebarView.addSubview(sidebarStackView)
 
+        // Hint at bottom of sidebar
+        let hint = NSTextField(labelWithString: "\u{2318}O Open Project")
+        hint.font = .systemFont(ofSize: 10)
+        hint.textColor = .tertiaryLabelColor
+        hint.alignment = .center
+        hint.translatesAutoresizingMaskIntoConstraints = false
+        sidebarView.addSubview(hint)
+
         NSLayoutConstraint.activate([
             sidebarStackView.topAnchor.constraint(equalTo: sidebarView.topAnchor, constant: 8),
             sidebarStackView.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
             sidebarStackView.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
+
+            hint.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor, constant: -6),
+            hint.centerXAnchor.constraint(equalTo: sidebarView.centerXAnchor),
         ])
 
         // Right pane: tab bar + terminal
@@ -173,6 +192,19 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         splitView.addArrangedSubview(sidebarView)
         splitView.addArrangedSubview(rightPane)
 
+        // Welcome message for empty state
+        let welcome = NSTextField(labelWithString: "Press \u{2318}O to open a project")
+        welcome.font = .systemFont(ofSize: 16, weight: .light)
+        welcome.textColor = .secondaryLabelColor
+        welcome.alignment = .center
+        welcome.translatesAutoresizingMaskIntoConstraints = false
+        terminalContainerView.addSubview(welcome)
+        NSLayoutConstraint.activate([
+            welcome.centerXAnchor.constraint(equalTo: terminalContainerView.centerXAnchor),
+            welcome.centerYAnchor.constraint(equalTo: terminalContainerView.centerYAnchor),
+        ])
+        self.welcomeLabel = welcome
+
         sidebarView.widthAnchor.constraint(greaterThanOrEqualToConstant: 80).isActive = true
 
         DispatchQueue.main.async { [self] in
@@ -202,7 +234,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         // Create default tabs
         let config = DefaultTabConfig.current
         for entry in config.entries {
-            createTabInProject(project, isClaude: entry.isClaude, name: entry.name)
+            createTabInProject(project, isClaude: entry.isClaude)
         }
 
         projects.append(project)
@@ -250,11 +282,22 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
     // MARK: - Tab Management (within a project)
 
-    private func createTabInProject(_ project: ProjectItem, isClaude: Bool, name: String, sessionIdToResume: String? = nil) {
+    private func createTabInProject(_ project: ProjectItem, isClaude: Bool, name: String? = nil, sessionIdToResume: String? = nil) {
         guard let app = ghosttyApp.app else { return }
 
         let surfaceView = TerminalNSView()
-        let tab = TabItem(surfaceView: surfaceView, name: name, isClaude: isClaude)
+        // Auto-number tabs within the project
+        let tabName: String
+        if let name = name {
+            tabName = name
+        } else if isClaude {
+            let count = project.tabs.filter { $0.isClaude }.count + 1
+            tabName = "Claude #\(count)"
+        } else {
+            let count = project.tabs.filter { !$0.isClaude }.count + 1
+            tabName = "Terminal #\(count)"
+        }
+        let tab = TabItem(surfaceView: surfaceView, name: tabName, isClaude: isClaude)
 
         var envVars: [String: String] = [:]
         if isClaude {
@@ -351,6 +394,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     }
 
     private func showTab(_ tab: TabItem) {
+        welcomeLabel?.isHidden = true
         currentTerminalView?.removeFromSuperview()
 
         let view = tab.surfaceView
@@ -624,38 +668,60 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         guard let project = currentProject else { return }
 
         for (i, tab) in project.tabs.enumerated() {
-            let button = NSButton(title: tab.name, target: self, action: #selector(tabBarClicked(_:)))
-            button.bezelStyle = .recessed
-            button.setButtonType(.momentaryPushIn)
-            button.isBordered = i == project.selectedTabIndex
-            button.font = .systemFont(ofSize: 12)
-            button.tag = i
-            button.wantsLayer = true
+            let isSelected = (i == project.selectedTabIndex)
+            let icon = tab.isClaude ? "\u{2726}" : "$"  // ✦ for Claude, $ for terminal
+            let title = " \(icon) \(tab.name) "
 
-            if i == project.selectedTabIndex {
-                button.layer?.backgroundColor = NSColor.selectedContentBackgroundColor.withAlphaComponent(0.3).cgColor
-                button.layer?.cornerRadius = 4
-            }
-
-            tabBar.addArrangedSubview(button)
+            let tabView = HorizontalTabView(
+                title: title,
+                isSelected: isSelected,
+                index: i,
+                target: self,
+                clickAction: #selector(tabBarClicked(_:)),
+                closeAction: #selector(tabBarCloseClicked(_:))
+            )
+            tabBar.addArrangedSubview(tabView)
         }
 
         // Add "+" button
         let addButton = NSButton(title: "+", target: self, action: #selector(addTabClicked))
         addButton.bezelStyle = .recessed
-        addButton.font = .systemFont(ofSize: 14)
+        addButton.font = .systemFont(ofSize: 13, weight: .medium)
         addButton.isBordered = false
+        addButton.contentTintColor = .secondaryLabelColor
         tabBar.addArrangedSubview(addButton)
 
-        // Spacer to push tabs left
+        // Spacer
         let spacer = NSView()
         spacer.translatesAutoresizingMaskIntoConstraints = false
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         tabBar.addArrangedSubview(spacer)
     }
 
-    @objc private func tabBarClicked(_ sender: NSButton) {
-        selectTabInProject(at: sender.tag)
+    @objc private func tabBarClicked(_ sender: HorizontalTabView) {
+        selectTabInProject(at: sender.index)
+    }
+
+    @objc private func tabBarCloseClicked(_ sender: NSButton) {
+        guard let project = currentProject else { return }
+        let idx = sender.tag
+        guard idx >= 0, idx < project.tabs.count else { return }
+
+        let tab = project.tabs[idx]
+        tab.surfaceView.destroySurface()
+        tab.surfaceView.removeFromSuperview()
+        project.tabs.remove(at: idx)
+
+        if project.tabs.isEmpty {
+            if let pi = projects.firstIndex(where: { $0.id == project.id }) {
+                closeProject(at: pi)
+            }
+        } else {
+            project.selectedTabIndex = min(idx, project.tabs.count - 1)
+            rebuildTabBar()
+            showTab(project.tabs[project.selectedTabIndex])
+        }
+        saveState()
     }
 
     @objc private func addTabClicked() {
@@ -761,6 +827,71 @@ class TabRowView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         _ = target?.perform(action, with: self)
+    }
+}
+
+// MARK: - HorizontalTabView
+
+/// A single tab in the horizontal tab bar, cmux-style.
+class HorizontalTabView: NSView {
+    let index: Int
+    private let label: NSTextField
+    private let closeButton: NSButton
+    private weak var target: AnyObject?
+    private let clickAction: Selector
+    private var isSelected: Bool
+
+    init(title: String, isSelected: Bool, index: Int, target: AnyObject,
+         clickAction: Selector, closeAction: Selector) {
+        self.index = index
+        self.isSelected = isSelected
+        self.target = target
+        self.clickAction = clickAction
+
+        label = NSTextField(labelWithString: title)
+        label.font = .systemFont(ofSize: 12)
+        label.textColor = isSelected ? .labelColor : .secondaryLabelColor
+        label.lineBreakMode = .byTruncatingTail
+
+        closeButton = NSButton(title: "\u{00D7}", target: nil, action: nil)  // ×
+        closeButton.bezelStyle = .recessed
+        closeButton.isBordered = false
+        closeButton.font = .systemFont(ofSize: 13)
+        closeButton.contentTintColor = .tertiaryLabelColor
+
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = true
+
+        closeButton.target = target
+        closeButton.action = closeAction
+        // Store index on close button via tag
+        closeButton.tag = index
+
+        label.translatesAutoresizingMaskIntoConstraints = false
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        addSubview(closeButton)
+
+        NSLayoutConstraint.activate([
+            heightAnchor.constraint(equalToConstant: 28),
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+            closeButton.leadingAnchor.constraint(equalTo: label.trailingAnchor, constant: 2),
+            closeButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            closeButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            closeButton.widthAnchor.constraint(equalToConstant: 16),
+        ])
+
+        if isSelected {
+            layer?.backgroundColor = NSColor.selectedContentBackgroundColor.withAlphaComponent(0.2).cgColor
+        }
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func mouseDown(with event: NSEvent) {
+        _ = target?.perform(clickAction, with: self)
     }
 }
 
