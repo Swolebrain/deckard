@@ -36,21 +36,17 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     private var selectedTabIndex: Int = -1
 
     // UI components
-    private var outerSplitView: NSSplitView!         // vertical: top | master
-    private let splitView = NSSplitView()            // horizontal: sidebar | terminal
+    private let splitView = NSSplitView()
     private let sidebarView = NSView()
     private let sidebarScrollView = NSScrollView()
-    private let sidebarStackView = NSStackView()
+    private let sidebarStackView = NSStackView()     // terminals at top
+    private let claudeStackView = NSStackView()      // claude sessions at bottom
     private let terminalContainerView = NSView()
-    private let masterContainerView = NSView()
-    private var masterSurfaceView: TerminalNSView?
-    private var masterSessionId: String?
     private var currentTerminalView: TerminalNSView?
     private var claudeTabCounter: Int = 0
     private var terminalTabCounter: Int = 0
 
     private let sidebarWidth: CGFloat = 210
-    private let masterHeight: CGFloat = 250
 
     init(ghosttyApp: DeckardGhosttyApp) {
         self.ghosttyApp = ghosttyApp
@@ -77,7 +73,6 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         }
 
         setupUI()
-        createMasterSurface()
         restoreOrCreateInitialTab()
 
         // Start autosaving state every 8 seconds
@@ -99,40 +94,57 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
-        // Outer split: vertical (top/bottom)
-        //   top = (sidebar | tab terminal)
-        //   bottom = master (full width)
-        let outerSplit = NSSplitView()
-        outerSplit.isVertical = false  // top/bottom
-        outerSplit.dividerStyle = .thin
-        outerSplit.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(outerSplit)
-        self.outerSplitView = outerSplit
-
-        NSLayoutConstraint.activate([
-            outerSplit.topAnchor.constraint(equalTo: contentView.topAnchor),
-            outerSplit.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-            outerSplit.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            outerSplit.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-        ])
-
-        // Top pane: sidebar | tab terminal
-        splitView.isVertical = true  // left/right
+        // Simple layout: sidebar | terminal
+        splitView.isVertical = true
         splitView.dividerStyle = .thin
         splitView.delegate = self
         splitView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(splitView)
+
+        NSLayoutConstraint.activate([
+            splitView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            splitView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            splitView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            splitView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+        ])
 
         // Sidebar
         sidebarView.translatesAutoresizingMaskIntoConstraints = false
         sidebarView.wantsLayer = true
         sidebarView.layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.95).cgColor
 
+        // Terminals stack (top of sidebar)
         sidebarStackView.orientation = .vertical
         sidebarStackView.alignment = .leading
         sidebarStackView.spacing = 1
         sidebarStackView.translatesAutoresizingMaskIntoConstraints = false
 
-        sidebarScrollView.documentView = sidebarStackView
+        // Claude sessions stack (bottom of sidebar)
+        claudeStackView.orientation = .vertical
+        claudeStackView.alignment = .leading
+        claudeStackView.spacing = 1
+        claudeStackView.translatesAutoresizingMaskIntoConstraints = false
+
+        // Container: terminals at top, spacer, claude at bottom
+        let sidebarContent = NSView()
+        sidebarContent.translatesAutoresizingMaskIntoConstraints = false
+        sidebarContent.addSubview(sidebarStackView)
+        sidebarContent.addSubview(claudeStackView)
+
+        NSLayoutConstraint.activate([
+            sidebarStackView.topAnchor.constraint(equalTo: sidebarContent.topAnchor),
+            sidebarStackView.leadingAnchor.constraint(equalTo: sidebarContent.leadingAnchor),
+            sidebarStackView.trailingAnchor.constraint(equalTo: sidebarContent.trailingAnchor),
+
+            claudeStackView.bottomAnchor.constraint(equalTo: sidebarContent.bottomAnchor),
+            claudeStackView.leadingAnchor.constraint(equalTo: sidebarContent.leadingAnchor),
+            claudeStackView.trailingAnchor.constraint(equalTo: sidebarContent.trailingAnchor),
+
+            // Ensure content is at least as tall as the scroll view
+            sidebarContent.widthAnchor.constraint(equalTo: sidebarScrollView.widthAnchor),
+        ])
+
+        sidebarScrollView.documentView = sidebarContent
         sidebarScrollView.hasVerticalScroller = true
         sidebarScrollView.autohidesScrollers = true
         sidebarScrollView.scrollerStyle = .overlay
@@ -145,7 +157,9 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             sidebarScrollView.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor, constant: -8),
             sidebarScrollView.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
             sidebarScrollView.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
-            sidebarStackView.widthAnchor.constraint(equalTo: sidebarScrollView.widthAnchor),
+
+            // Content height fills the scroll view (so claude tabs anchor to visible bottom)
+            sidebarContent.heightAnchor.constraint(greaterThanOrEqualTo: sidebarScrollView.heightAnchor),
         ])
 
         terminalContainerView.translatesAutoresizingMaskIntoConstraints = false
@@ -153,21 +167,8 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         splitView.addArrangedSubview(sidebarView)
         splitView.addArrangedSubview(terminalContainerView)
 
-        // Bottom pane: master (full width)
-        masterContainerView.translatesAutoresizingMaskIntoConstraints = false
-        masterContainerView.wantsLayer = true
-
-        // Assemble outer split
-        outerSplit.addArrangedSubview(splitView)
-        outerSplit.addArrangedSubview(masterContainerView)
-
-        // Set initial sizes after layout
         DispatchQueue.main.async { [self] in
             splitView.setPosition(sidebarWidth, ofDividerAt: 0)
-            let totalHeight = outerSplit.bounds.height
-            if totalHeight > 0 {
-                outerSplit.setPosition(totalHeight - masterHeight, ofDividerAt: 0)
-            }
         }
     }
 
@@ -323,64 +324,6 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         }
     }
 
-    // MARK: - Master Session
-
-    private func createMasterSurface() {
-        guard let app = ghosttyApp.app else { return }
-
-        let surfaceView = TerminalNSView()
-        surfaceView.translatesAutoresizingMaskIntoConstraints = false
-        masterContainerView.addSubview(surfaceView)
-        NSLayoutConstraint.activate([
-            surfaceView.topAnchor.constraint(equalTo: masterContainerView.topAnchor),
-            surfaceView.bottomAnchor.constraint(equalTo: masterContainerView.bottomAnchor),
-            surfaceView.leadingAnchor.constraint(equalTo: masterContainerView.leadingAnchor),
-            surfaceView.trailingAnchor.constraint(equalTo: masterContainerView.trailingAnchor),
-        ])
-
-        var envVars: [String: String] = ["DECKARD_SESSION_TYPE": "master"]
-
-        // Build the MCP config JSON with env vars so the MCP server can reach the socket
-        var mcpFlag = ""
-        if let mcpPath = Bundle.main.resourceURL?.appendingPathComponent("bin/deckard-mcp").path {
-            let socketPath = ControlSocket.shared.path
-            // Use full path to python3 since Claude Code's MCP subprocess may have limited PATH
-            let python3Path = "/usr/bin/python3"
-            let mcpConfig: [String: Any] = ["mcpServers": ["deckard": [
-                "command": python3Path,
-                "args": [mcpPath],
-                "env": ["DECKARD_SOCKET_PATH": socketPath]
-            ]]]
-            let mcpConfigPath = "/tmp/deckard-mcp-config.json"
-            if let data = try? JSONSerialization.data(withJSONObject: mcpConfig),
-               let _ = try? data.write(to: URL(fileURLWithPath: mcpConfigPath)) {
-                mcpFlag = " --mcp-config \(mcpConfigPath)"
-            }
-        }
-
-        let systemPrompt = "You are the master controller for Deckard, a multi-session Claude Code terminal manager. You have MCP tools (via the deckard server) to list_tabs, create_tab, rename_tab, close_tab, focus_tab, get_tab_status, and create_terminal_tab. Use these to help the user manage their Claude Code sessions. When you see tabs with generic names, use list_tabs and rename_tab to give them descriptive 2-4 word names based on what the session is working on. Keep responses concise."
-
-        let pathPrefix = "export PATH=\"$DECKARD_BIN_DIR:$PATH\"; "
-        let initialInput = "\(pathPrefix)clear; claude\(mcpFlag) --append-system-prompt '\(systemPrompt)'\n"
-
-        let masterId = UUID()
-        surfaceView.createSurface(
-            app: app,
-            tabId: masterId,
-            workingDirectory: Self.defaultWorkingDirectory,
-            command: nil,
-            envVars: envVars,
-            initialInput: initialInput
-        )
-
-        masterSurfaceView = surfaceView
-    }
-
-    func focusMasterSession() {
-        if let masterView = masterSurfaceView {
-            window?.makeFirstResponder(masterView)
-        }
-    }
 
     func focusedSurface() -> ghostty_surface_t? {
         guard selectedTabIndex >= 0, selectedTabIndex < tabs.count else { return nil }
@@ -457,14 +400,6 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
     func updateSessionId(forSurfaceId surfaceIdStr: String, sessionId: String) {
         guard let surfaceId = UUID(uuidString: surfaceIdStr) else { return }
-
-        // Check if this is the master surface
-        if let masterView = masterSurfaceView, masterView.surfaceId == surfaceId {
-            masterSessionId = sessionId
-            saveState()
-            return
-        }
-
         for tab in tabs {
             if tab.id == surfaceId {
                 let oldId = tab.sessionId
@@ -484,7 +419,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         for (i, tab) in tabs.enumerated() {
             if tab.id == surfaceId {
                 tab.badgeState = state
-                if let row = sidebarStackView.arrangedSubviews[safe: i] as? TabRowView {
+                for row in allSidebarRows where row.index == i {
                     row.badgeState = state
                 }
                 break
@@ -510,7 +445,6 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
     func captureState() -> DeckardState {
         var state = DeckardState()
-        state.masterSessionId = masterSessionId
         state.claudeTabCounter = claudeTabCounter
         state.terminalTabCounter = terminalTabCounter
         state.defaultWorkingDirectory = Self.defaultWorkingDirectory
@@ -581,35 +515,39 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
     private func rebuildSidebar() {
         sidebarStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        claudeStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
         for (i, tab) in tabs.enumerated() {
-            let row = TabRowView(title: tab.isMaster ? "\u{2605} \(tab.name)" : tab.name,
-                                 bold: tab.isMaster,
-                                 index: i,
-                                 target: self,
-                                 action: #selector(tabRowClicked(_:)))
+            let row = TabRowView(title: tab.name, bold: false, index: i,
+                                 target: self, action: #selector(tabRowClicked(_:)))
             row.badgeState = tab.badgeState
-            sidebarStackView.addArrangedSubview(row)
-            row.leadingAnchor.constraint(equalTo: sidebarStackView.leadingAnchor).isActive = true
-            row.trailingAnchor.constraint(equalTo: sidebarStackView.trailingAnchor).isActive = true
+
+            let stack = tab.isClaude ? claudeStackView : sidebarStackView
+            stack.addArrangedSubview(row)
+            row.leadingAnchor.constraint(equalTo: stack.leadingAnchor).isActive = true
+            row.trailingAnchor.constraint(equalTo: stack.trailingAnchor).isActive = true
         }
 
         updateSidebarSelection()
     }
 
+    private var allSidebarRows: [TabRowView] {
+        let top = sidebarStackView.arrangedSubviews.compactMap { $0 as? TabRowView }
+        let bottom = claudeStackView.arrangedSubviews.compactMap { $0 as? TabRowView }
+        return top + bottom
+    }
+
     private func updateSidebarSelection() {
-        for (i, view) in sidebarStackView.arrangedSubviews.enumerated() {
-            if let row = view as? TabRowView {
-                row.isSelected = (i == selectedTabIndex)
-            }
+        for row in allSidebarRows {
+            row.isSelected = (row.index == selectedTabIndex)
         }
     }
 
     private func updateSidebarItem(at index: Int) {
-        guard index >= 0, index < sidebarStackView.arrangedSubviews.count else { return }
+        guard index >= 0, index < tabs.count else { return }
         let tab = tabs[index]
-        if let row = sidebarStackView.arrangedSubviews[index] as? TabRowView {
-            row.title = tab.isMaster ? "\u{2605} \(tab.name)" : tab.name
+        for row in allSidebarRows where row.index == index {
+            row.title = tab.name
         }
     }
 

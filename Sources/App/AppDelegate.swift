@@ -146,9 +146,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // View menu
         let viewMenuItem = NSMenuItem()
         let viewMenu = NSMenu(title: "View")
-        let masterItem = NSMenuItem(title: "Focus Master Session", action: #selector(focusMasterSession), keyEquivalent: "m")
-        masterItem.keyEquivalentModifierMask = [.command, .shift]
-        viewMenu.addItem(masterItem)
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
 
@@ -176,10 +173,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func closeCurrentTab() {
         windowController?.closeCurrentTab()
-    }
-
-    @objc private func focusMasterSession() {
-        windowController?.focusMasterSession()
     }
 
     @objc private func selectNextTab() {
