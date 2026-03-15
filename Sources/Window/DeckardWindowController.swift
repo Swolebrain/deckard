@@ -375,12 +375,13 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
         let initialInput: String?
         if isClaude {
-            // stty -echo suppresses the command flash before clear runs
             let prefix = "stty -echo; export PATH=\"$DECKARD_BIN_DIR:$PATH\"; clear; stty echo; "
+            let extraArgs = UserDefaults.standard.string(forKey: "claudeExtraArgs") ?? ""
+            let extraArgsSuffix = extraArgs.isEmpty ? "" : " \(extraArgs)"
             if let sid = sessionIdToResume {
-                initialInput = "\(prefix)claude --resume \(sid)\n"
+                initialInput = "\(prefix)claude --resume \(sid)\(extraArgsSuffix)\n"
             } else {
-                initialInput = "\(prefix)claude\n"
+                initialInput = "\(prefix)claude\(extraArgsSuffix)\n"
             }
         } else {
             initialInput = "stty -echo; clear; stty echo\n"

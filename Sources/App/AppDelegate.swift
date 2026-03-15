@@ -222,10 +222,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func showSettings() {
-        // TODO: Settings for default tab configuration
         let alert = NSAlert()
         alert.messageText = "Deckard Settings"
-        alert.informativeText = "Settings will be available in a future update."
-        alert.runModal()
+        alert.informativeText = "Extra arguments passed to every new Claude Code session.\nExample: --dangerously-skip-permissions"
+
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 400, height: 24))
+        input.stringValue = UserDefaults.standard.string(forKey: "claudeExtraArgs") ?? ""
+        input.placeholderString = "--dangerously-skip-permissions"
+        alert.accessoryView = input
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            UserDefaults.standard.set(input.stringValue.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "claudeExtraArgs")
+        }
     }
 }
