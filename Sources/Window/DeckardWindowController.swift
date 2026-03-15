@@ -779,11 +779,10 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         }
 
         // Add "+" button
-        let addButton = NSButton(title: "+", target: self, action: #selector(addTabClicked))
-        addButton.bezelStyle = .recessed
-        addButton.font = .systemFont(ofSize: 13, weight: .medium)
-        addButton.isBordered = false
-        addButton.contentTintColor = .secondaryLabelColor
+        let addButton = AddTabButton(
+            leftClickAction: { [weak self] in self?.addTabToCurrentProject(isClaude: true) },
+            rightClickAction: { [weak self] in self?.addTabToCurrentProject(isClaude: false) }
+        )
         tabBar.addArrangedSubview(addButton)
 
         // Spacer
@@ -819,9 +818,6 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         saveState()
     }
 
-    @objc private func addTabClicked() {
-        addTabToCurrentProject(isClaude: true)
-    }
 
     // MARK: - Navigation
 
@@ -1184,6 +1180,44 @@ class HorizontalTabView: NSView, NSTextFieldDelegate {
             return true
         }
         return false
+    }
+}
+
+// MARK: - AddTabButton
+
+/// + button: left-click adds Claude tab, right-click adds terminal tab.
+class AddTabButton: NSView {
+    private let leftClickAction: () -> Void
+    private let rightClickAction: () -> Void
+    private let label: NSTextField
+
+    init(leftClickAction: @escaping () -> Void, rightClickAction: @escaping () -> Void) {
+        self.leftClickAction = leftClickAction
+        self.rightClickAction = rightClickAction
+        label = NSTextField(labelWithString: "  +")
+        label.font = .systemFont(ofSize: 13, weight: .medium)
+        label.textColor = .secondaryLabelColor
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+            label.leadingAnchor.constraint(equalTo: leadingAnchor),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor),
+            widthAnchor.constraint(equalToConstant: 28),
+            heightAnchor.constraint(equalToConstant: 28),
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func mouseDown(with event: NSEvent) {
+        leftClickAction()
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        rightClickAction()
     }
 }
 
