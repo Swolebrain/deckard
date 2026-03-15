@@ -415,20 +415,13 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             initialInput = "stty -echo; clear; stty echo\n"
         }
 
-        // Add overlay BEFORE creating surface so no frame renders without it
+        // Overlay added to surfaceView — will be moved to terminalContainerView
+        // in showTab() so it sits above the Metal rendering layer
         let overlay = NSView()
         overlay.wantsLayer = true
         overlay.layer?.backgroundColor = ghosttyApp.defaultBackgroundColor.cgColor
-        overlay.layer?.zPosition = 9999
         overlay.translatesAutoresizingMaskIntoConstraints = false
-        surfaceView.addSubview(overlay)
         surfaceView.tabOverlay = overlay
-        NSLayoutConstraint.activate([
-            overlay.topAnchor.constraint(equalTo: surfaceView.topAnchor),
-            overlay.bottomAnchor.constraint(equalTo: surfaceView.bottomAnchor),
-            overlay.leadingAnchor.constraint(equalTo: surfaceView.leadingAnchor),
-            overlay.trailingAnchor.constraint(equalTo: surfaceView.trailingAnchor),
-        ])
         // Safety fallback
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak overlay] in
             overlay?.removeFromSuperview()
@@ -512,6 +505,8 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
     private func showTab(_ tab: TabItem) {
         welcomeLabel?.isHidden = true
+        // Remove any existing overlay from container
+        terminalContainerView.subviews.filter { $0.layer?.zPosition == 9999 }.forEach { $0.removeFromSuperview() }
         currentTerminalView?.removeFromSuperview()
 
         let view = tab.surfaceView
@@ -524,6 +519,19 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             view.trailingAnchor.constraint(equalTo: terminalContainerView.trailingAnchor),
         ])
         currentTerminalView = view
+
+        // If this tab has a pending overlay, add it ON TOP of the Metal surface
+        if let overlay = tab.surfaceView.tabOverlay {
+            overlay.layer?.zPosition = 9999
+            terminalContainerView.addSubview(overlay)
+            NSLayoutConstraint.activate([
+                overlay.topAnchor.constraint(equalTo: terminalContainerView.topAnchor),
+                overlay.bottomAnchor.constraint(equalTo: terminalContainerView.bottomAnchor),
+                overlay.leadingAnchor.constraint(equalTo: terminalContainerView.leadingAnchor),
+                overlay.trailingAnchor.constraint(equalTo: terminalContainerView.trailingAnchor),
+            ])
+        }
+
         window?.makeFirstResponder(view)
     }
 
