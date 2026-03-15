@@ -160,7 +160,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         sidebarView.addSubview(hint)
 
         NSLayoutConstraint.activate([
-            sidebarStackView.topAnchor.constraint(equalTo: sidebarView.topAnchor, constant: 0),
+            sidebarStackView.topAnchor.constraint(equalTo: sidebarView.topAnchor, constant: 38),
             sidebarStackView.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
             sidebarStackView.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
 
@@ -183,10 +183,10 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         rightPane.addSubview(terminalContainerView)
 
         NSLayoutConstraint.activate([
-            tabBar.topAnchor.constraint(equalTo: rightPane.topAnchor),
+            tabBar.topAnchor.constraint(equalTo: rightPane.topAnchor, constant: 6),
             tabBar.leadingAnchor.constraint(equalTo: rightPane.leadingAnchor),
             tabBar.trailingAnchor.constraint(equalTo: rightPane.trailingAnchor),
-            tabBar.heightAnchor.constraint(equalToConstant: 38), // match title bar height
+            tabBar.heightAnchor.constraint(equalToConstant: 28),
 
             terminalContainerView.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
             terminalContainerView.leadingAnchor.constraint(equalTo: rightPane.leadingAnchor),
