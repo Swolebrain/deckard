@@ -82,6 +82,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     private var currentTerminalView: TerminalNSView?
     private var welcomeLabel: NSTextField?
 
+    private let sidebarDropZone = SidebarDropZone()
     private let sidebarWidth: CGFloat = 210
     private var sidebarInitialized = false
     private var startupOverlay: NSView?
@@ -178,6 +179,11 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         sidebarView.wantsLayer = true
         sidebarView.layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.95).cgColor
 
+        // Drop zone covers the entire sidebar area below the stack
+        sidebarDropZone.translatesAutoresizingMaskIntoConstraints = false
+        sidebarDropZone.registerForDraggedTypes([deckardProjectDragType])
+        sidebarView.addSubview(sidebarDropZone)
+
         sidebarStackView.orientation = .vertical
         sidebarStackView.alignment = .leading
         sidebarStackView.spacing = 1
@@ -202,6 +208,11 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             sidebarStackView.topAnchor.constraint(equalTo: sidebarView.topAnchor, constant: 28),
             sidebarStackView.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
             sidebarStackView.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
+
+            sidebarDropZone.topAnchor.constraint(equalTo: sidebarStackView.bottomAnchor),
+            sidebarDropZone.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor),
+            sidebarDropZone.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
+            sidebarDropZone.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
         ])
 
         // Right pane: tab bar + terminal
@@ -811,10 +822,14 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         }
 
         sidebarStackView.registerForDraggedTypes([deckardProjectDragType])
-        sidebarView.registerForDraggedTypes([deckardProjectDragType])
         sidebarStackView.onReorder = { [weak self] from, to in
             self?.reorderProject(from: from, to: to)
         }
+        sidebarDropZone.onDrop = { [weak self] fromIndex in
+            guard let self = self else { return }
+            self.reorderProject(from: fromIndex, to: self.projects.count)
+        }
+        sidebarDropZone.sidebarStackView = sidebarStackView
 
         updateSidebarSelection()
     }
@@ -1471,7 +1486,11 @@ class ReorderableStackView: NSStackView {
         dropIndicator.frame = NSRect(x: 8, y: yPos, width: bounds.width - 16, height: 2)
     }
 
-    private func hideIndicator() {
+    func showIndicatorAtEnd() {
+        showIndicator(at: arrangedSubviews.count)
+    }
+
+    func hideIndicator() {
         dropIndicator.isHidden = true
         currentDropIndex = -1
     }
@@ -1505,6 +1524,42 @@ class ReorderableStackView: NSStackView {
         if toIndex != fromIndex {
             onReorder?(fromIndex, toIndex)
         }
+        return true
+    }
+}
+
+// MARK: - SidebarDropZone
+
+/// Covers the empty area below the project list; dropping here moves to end.
+class SidebarDropZone: NSView {
+    var onDrop: ((Int) -> Void)?
+    weak var sidebarStackView: ReorderableStackView?
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard sender.draggingPasteboard.types?.contains(deckardProjectDragType) == true else { return [] }
+        sidebarStackView?.showIndicatorAtEnd()
+        return .move
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard sender.draggingPasteboard.types?.contains(deckardProjectDragType) == true else { return [] }
+        sidebarStackView?.showIndicatorAtEnd()
+        return .move
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        sidebarStackView?.hideIndicator()
+    }
+
+    override func draggingEnded(_ sender: NSDraggingInfo) {
+        sidebarStackView?.hideIndicator()
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        sidebarStackView?.hideIndicator()
+        guard let fromStr = sender.draggingPasteboard.string(forType: deckardProjectDragType),
+              let fromIndex = Int(fromStr) else { return false }
+        onDrop?(fromIndex)
         return true
     }
 }
