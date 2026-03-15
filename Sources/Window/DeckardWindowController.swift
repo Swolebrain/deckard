@@ -403,6 +403,27 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         )
 
         project.tabs.append(tab)
+
+        // Brief overlay to hide the stty/clear commands flashing
+        let overlay = NSView()
+        overlay.wantsLayer = true
+        overlay.layer?.backgroundColor = ghosttyApp.defaultBackgroundColor.cgColor
+        overlay.translatesAutoresizingMaskIntoConstraints = false
+        surfaceView.addSubview(overlay)
+        NSLayoutConstraint.activate([
+            overlay.topAnchor.constraint(equalTo: surfaceView.topAnchor),
+            overlay.bottomAnchor.constraint(equalTo: surfaceView.bottomAnchor),
+            overlay.leadingAnchor.constraint(equalTo: surfaceView.leadingAnchor),
+            overlay.trailingAnchor.constraint(equalTo: surfaceView.trailingAnchor),
+        ])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            NSAnimationContext.runAnimationGroup({ ctx in
+                ctx.duration = 0.3
+                overlay.animator().alphaValue = 0
+            }, completionHandler: {
+                overlay.removeFromSuperview()
+            })
+        }
     }
 
     func addTabToCurrentProject(isClaude: Bool) {
