@@ -961,6 +961,7 @@ class TabRowView: NSView, NSTextFieldDelegate, NSDraggingSource {
     private func startEditing() {
         label.isEditable = true
         label.isSelectable = true
+        label.focusRingType = .none
         label.delegate = self
         label.becomeFirstResponder()
         label.currentEditor()?.selectAll(nil)
@@ -1095,8 +1096,9 @@ class HorizontalTabView: NSView, NSTextFieldDelegate {
 
         label.isEditable = true
         label.isSelectable = true
-        label.isBezeled = true
-        label.bezelStyle = .roundedBezel
+        label.isBezeled = false
+        label.drawsBackground = false
+        label.focusRingType = .none
         label.stringValue = rawName
         label.delegate = self
         label.becomeFirstResponder()
