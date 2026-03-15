@@ -13,12 +13,12 @@ class TabItem {
     var workingDirectory: String?
     var badgeState: BadgeState = .none
 
-    enum BadgeState {
+    enum BadgeState: String {
         case none
-        case active
-        case waitingForInput
-        case needsPermission
-        case error
+        case thinking        // green - Claude is working/thinking
+        case waitingForInput // blue - waiting for user input
+        case needsPermission // orange - needs permission approval
+        case error           // red
     }
 
     init(surfaceView: TerminalNSView, name: String, isClaude: Bool = true) {
@@ -292,6 +292,13 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         selectTab(at: (selectedTabIndex - 1 + tabs.count) % tabs.count)
     }
 
+    func focusTabById(_ tabId: UUID) {
+        if let index = tabs.firstIndex(where: { $0.id == tabId }) {
+            selectTab(at: index)
+            window?.makeKeyAndOrderFront(nil)
+        }
+    }
+
     func focusMasterSession() {
         if let masterIndex = tabs.firstIndex(where: { $0.isMaster }) {
             selectTab(at: masterIndex)
@@ -332,6 +339,19 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         if let index = tabs.firstIndex(where: { $0.id == surfaceId }) {
             closeTab(at: index)
         }
+    }
+
+    // MARK: - Tab Lookup
+
+    func tabForSurfaceId(_ surfaceIdStr: String) -> TabItem? {
+        guard let surfaceId = UUID(uuidString: surfaceIdStr) else { return nil }
+        return tabs.first(where: { $0.id == surfaceId })
+    }
+
+    func isTabFocused(_ surfaceIdStr: String) -> Bool {
+        guard let surfaceId = UUID(uuidString: surfaceIdStr) else { return false }
+        guard selectedTabIndex >= 0, selectedTabIndex < tabs.count else { return false }
+        return tabs[selectedTabIndex].id == surfaceId && (window?.isKeyWindow ?? false)
     }
 
     // MARK: - Badge Updates
@@ -446,8 +466,8 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
                                  index: i,
                                  target: self,
                                  action: #selector(tabRowClicked(_:)))
+            row.badgeState = tab.badgeState
             sidebarStackView.addArrangedSubview(row)
-            // Pin row to full width of stack view
             row.leadingAnchor.constraint(equalTo: sidebarStackView.leadingAnchor).isActive = true
             row.trailingAnchor.constraint(equalTo: sidebarStackView.trailingAnchor).isActive = true
         }
@@ -468,16 +488,6 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         let tab = tabs[index]
         if let row = sidebarStackView.arrangedSubviews[index] as? TabRowView {
             row.title = tab.isMaster ? "\u{2605} \(tab.name)" : tab.name
-        }
-    }
-
-    private func badgeColor(for state: TabItem.BadgeState) -> NSColor {
-        switch state {
-        case .none: return .clear
-        case .active: return .systemGreen
-        case .waitingForInput: return .systemBlue
-        case .needsPermission: return .systemOrange
-        case .error: return .systemRed
         }
     }
 
@@ -525,7 +535,10 @@ class TabRowView: NSView {
         didSet { needsDisplay = true }
     }
     var badgeState: TabItem.BadgeState = .none {
-        didSet { badgeDot.layer?.backgroundColor = badgeColor.cgColor }
+        didSet {
+            badgeDot.layer?.backgroundColor = badgeColor.cgColor
+            badgeDot.needsDisplay = true
+        }
     }
     let index: Int
     private let label: NSTextField
@@ -536,7 +549,7 @@ class TabRowView: NSView {
     private var badgeColor: NSColor {
         switch badgeState {
         case .none: return .clear
-        case .active: return .systemGreen
+        case .thinking: return NSColor(red: 0.85, green: 0.65, blue: 0.2, alpha: 1.0) // amber
         case .waitingForInput: return .systemBlue
         case .needsPermission: return .systemOrange
         case .error: return .systemRed

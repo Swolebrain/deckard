@@ -12,6 +12,7 @@
 		37FA9D946FD6ECA1DDF5898A /* DeckardWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8391EFB62A21AFA1DA62733F /* DeckardWindowController.swift */; };
 		41C3D848646ABF112104F6A4 /* DeckardGhosttyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A605D524B1CC5AAC25147C77 /* DeckardGhosttyApp.swift */; };
 		432752F9187D2E815F617B96 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88AA91CDBC6DDE958543FB29 /* main.swift */; };
+		785E265799B23197E43628CF /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EB9FA577948DC32DED47B7 /* NotificationManager.swift */; };
 		7E500DC8ECF3F7D073A098A4 /* ControlSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = D08100E22096E7498D571A20 /* ControlSocket.swift */; };
 		A0FF9B9E99BC8B33FDCAB7E5 /* HookHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2B375A023FEBCB272DCFD7 /* HookHandler.swift */; };
 		F14F059C3523C8983BFF01FD /* SurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1819508589B0D94AC0310DDB /* SurfaceView.swift */; };
@@ -26,6 +27,7 @@
 		8391EFB62A21AFA1DA62733F /* DeckardWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckardWindowController.swift; sourceTree = "<group>"; };
 		88AA91CDBC6DDE958543FB29 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		A32278396B92132B3CE7A5A4 /* Deckard.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Deckard.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A5EB9FA577948DC32DED47B7 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		A605D524B1CC5AAC25147C77 /* DeckardGhosttyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckardGhosttyApp.swift; sourceTree = "<group>"; };
 		D08100E22096E7498D571A20 /* ControlSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlSocket.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -35,6 +37,7 @@
 			isa = PBXGroup;
 			children = (
 				4A2B375A023FEBCB272DCFD7 /* HookHandler.swift */,
+				A5EB9FA577948DC32DED47B7 /* NotificationManager.swift */,
 			);
 			path = Detection;
 			sourceTree = "<group>";
@@ -191,6 +194,7 @@
 				41C3D848646ABF112104F6A4 /* DeckardGhosttyApp.swift in Sources */,
 				37FA9D946FD6ECA1DDF5898A /* DeckardWindowController.swift in Sources */,
 				A0FF9B9E99BC8B33FDCAB7E5 /* HookHandler.swift in Sources */,
+				785E265799B23197E43628CF /* NotificationManager.swift in Sources */,
 				2D322E22D0679FD39D688539 /* SessionState.swift in Sources */,
 				F14F059C3523C8983BFF01FD /* SurfaceView.swift in Sources */,
 				432752F9187D2E815F617B96 /* main.swift in Sources */,

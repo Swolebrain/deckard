@@ -40,6 +40,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         nc.addObserver(self, selector: #selector(handleNewTab), name: .deckardNewTab, object: nil)
         nc.addObserver(self, selector: #selector(handleCloseTab), name: .deckardCloseTab, object: nil)
 
+        // Request notification permissions.
+        NotificationManager.shared.setup()
+
         // Start the control socket for hook communication.
         ControlSocket.shared.start()
         ControlSocket.shared.onMessage = { [weak self] message, reply in

@@ -11,7 +11,7 @@ class HookHandler {
 
         case "hook.session-start":
             if let surfaceId = message.surfaceId {
-                windowController?.updateBadge(forSurfaceId: surfaceId, state: .active)
+                windowController?.updateBadge(forSurfaceId: surfaceId, state: .thinking)
             }
             reply(ControlResponse(ok: true))
 
@@ -19,6 +19,8 @@ class HookHandler {
             // Claude finished responding — waiting for user input
             if let surfaceId = message.surfaceId {
                 windowController?.updateBadge(forSurfaceId: surfaceId, state: .waitingForInput)
+                // Notify if this tab is not focused
+                notifyIfNotFocused(surfaceId: surfaceId, reason: .waitingForInput)
             }
             reply(ControlResponse(ok: true))
 
@@ -27,23 +29,25 @@ class HookHandler {
                 let type = message.notificationType ?? ""
                 if type.contains("permission") {
                     windowController?.updateBadge(forSurfaceId: surfaceId, state: .needsPermission)
+                    notifyIfNotFocused(surfaceId: surfaceId, reason: .needsPermission)
                 } else {
                     windowController?.updateBadge(forSurfaceId: surfaceId, state: .waitingForInput)
+                    notifyIfNotFocused(surfaceId: surfaceId, reason: .waitingForInput)
                 }
             }
             reply(ControlResponse(ok: true))
 
         case "hook.user-prompt-submit":
-            // User typed something — Claude is working again
+            // User typed something — Claude is thinking
             if let surfaceId = message.surfaceId {
-                windowController?.updateBadge(forSurfaceId: surfaceId, state: .active)
+                windowController?.updateBadge(forSurfaceId: surfaceId, state: .thinking)
             }
             reply(ControlResponse(ok: true))
 
         case "hook.pre-tool-use":
-            // Tool starting — Claude is active
+            // Tool starting — Claude is thinking/working
             if let surfaceId = message.surfaceId {
-                windowController?.updateBadge(forSurfaceId: surfaceId, state: .active)
+                windowController?.updateBadge(forSurfaceId: surfaceId, state: .thinking)
             }
             reply(ControlResponse(ok: true))
 
@@ -68,5 +72,18 @@ class HookHandler {
         default:
             reply(ControlResponse(ok: false, error: "unknown command: \(message.command)"))
         }
+    }
+
+    /// Send a macOS notification if the tab is not currently focused.
+    private func notifyIfNotFocused(surfaceId: String, reason: TabItem.BadgeState) {
+        guard let wc = windowController,
+              let tab = wc.tabForSurfaceId(surfaceId),
+              !wc.isTabFocused(surfaceId) else { return }
+
+        NotificationManager.shared.notifyTabNeedsAttention(
+            tabName: tab.name,
+            reason: reason,
+            tabId: tab.id
+        )
     }
 }
