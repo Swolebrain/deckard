@@ -65,6 +65,8 @@ struct DefaultTabConfig {
 
 // MARK: - Window Controller
 
+let deckardProjectDragType = NSPasteboard.PasteboardType("com.deckard.project-reorder")
+
 class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     private let ghosttyApp: DeckardGhosttyApp
     private var projects: [ProjectItem] = []
@@ -73,7 +75,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     // UI
     private let splitView = NSSplitView()
     private let sidebarView = NSView()
-    private let sidebarStackView = NSStackView()
+    private let sidebarStackView = ReorderableStackView()
     private let rightPane = NSView()
     private let tabBar = NSStackView()          // horizontal tab bar
     private let terminalContainerView = NSView()
@@ -806,12 +808,42 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             row.onClose = { [weak self] in
                 self?.closeProject(at: i)
             }
+            row.onReorder = { [weak self] fromIndex, toIndex in
+                self?.reorderProject(from: fromIndex, to: toIndex)
+            }
             sidebarStackView.addArrangedSubview(row)
             row.leadingAnchor.constraint(equalTo: sidebarStackView.leadingAnchor).isActive = true
             row.trailingAnchor.constraint(equalTo: sidebarStackView.trailingAnchor).isActive = true
         }
 
+        sidebarStackView.registerForDraggedTypes([deckardProjectDragType])
+        sidebarStackView.onReorder = { [weak self] from, to in
+            self?.reorderProject(from: from, to: to)
+        }
+
         updateSidebarSelection()
+    }
+
+    private func reorderProject(from fromIndex: Int, to toIndex: Int) {
+        guard fromIndex != toIndex,
+              fromIndex >= 0, fromIndex < projects.count,
+              toIndex >= 0, toIndex <= projects.count else { return }
+
+        let project = projects.remove(at: fromIndex)
+        let insertAt = toIndex > fromIndex ? toIndex - 1 : toIndex
+        projects.insert(project, at: min(insertAt, projects.count))
+
+        // Update selected index
+        if selectedProjectIndex == fromIndex {
+            selectedProjectIndex = insertAt
+        } else if fromIndex < selectedProjectIndex && insertAt >= selectedProjectIndex {
+            selectedProjectIndex -= 1
+        } else if fromIndex > selectedProjectIndex && insertAt <= selectedProjectIndex {
+            selectedProjectIndex += 1
+        }
+
+        rebuildSidebar()
+        saveState()
     }
 
     private func updateSidebarSelection() {
@@ -933,8 +965,6 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 }
 
 // MARK: - TabRowView
-
-private let deckardProjectDragType = NSPasteboard.PasteboardType("com.deckard.project-reorder")
 
 class TabRowView: NSView, NSTextFieldDelegate, NSDraggingSource {
     var title: String {
@@ -1106,10 +1136,13 @@ class TabRowView: NSView, NSTextFieldDelegate, NSDraggingSource {
         guard let start = dragStartPoint else { return }
         let current = convert(event.locationInWindow, from: nil)
         let distance = abs(current.y - start.y)
-        guard distance > 4 else { return }  // minimum drag threshold
+        guard distance > 5 else { return }
 
         dragStartPoint = nil
-        let item = NSDraggingItem(pasteboardWriter: "\(index)" as NSString)
+
+        let pb = NSPasteboardItem()
+        pb.setString("\(index)", forType: deckardProjectDragType)
+        let item = NSDraggingItem(pasteboardWriter: pb)
         item.setDraggingFrame(bounds, contents: snapshot())
         beginDraggingSession(with: [item], event: event, source: self)
     }
@@ -1117,6 +1150,7 @@ class TabRowView: NSView, NSTextFieldDelegate, NSDraggingSource {
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         return .move
     }
+
 
     private func snapshot() -> NSImage {
         let image = NSImage(size: bounds.size)
@@ -1392,6 +1426,43 @@ class AddTabButton: NSView {
 
     override func rightMouseDown(with event: NSEvent) {
         rightClickAction()
+    }
+}
+
+// MARK: - ReorderableStackView
+
+/// NSStackView subclass that accepts drops for reordering.
+class ReorderableStackView: NSStackView {
+    var onReorder: ((Int, Int) -> Void)?
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard sender.draggingPasteboard.types?.contains(deckardProjectDragType) == true else { return [] }
+        return .move
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard sender.draggingPasteboard.types?.contains(deckardProjectDragType) == true else { return [] }
+        return .move
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let fromStr = sender.draggingPasteboard.string(forType: deckardProjectDragType),
+              let fromIndex = Int(fromStr) else { return false }
+
+        let location = convert(sender.draggingLocation, from: nil)
+        var toIndex = arrangedSubviews.count
+
+        for (i, view) in arrangedSubviews.enumerated() {
+            if location.y > view.frame.midY {
+                toIndex = i
+                break
+            }
+        }
+
+        if toIndex != fromIndex {
+            onReorder?(fromIndex, toIndex)
+        }
+        return true
     }
 }
 
