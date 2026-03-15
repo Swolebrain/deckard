@@ -186,25 +186,29 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         sidebarStackView.translatesAutoresizingMaskIntoConstraints = false
         sidebarView.addSubview(sidebarStackView)
 
-        // Open folder button in the title bar (right-aligned)
+        // Toolbar with open folder button
+        let toolbar = NSToolbar(identifier: "DeckardToolbar")
+        toolbar.displayMode = .iconOnly
+        window?.toolbar = toolbar
+        // Add open button to the toolbar via title bar accessory
         let openButton = NSButton(image: NSImage(systemSymbolName: "folder.badge.plus", accessibilityDescription: "Open Folder")!, target: self, action: #selector(openProjectClicked))
         openButton.bezelStyle = .recessed
         openButton.isBordered = false
         openButton.contentTintColor = .secondaryLabelColor
         openButton.toolTip = "Open Folder (\u{2318}O)"
         openButton.translatesAutoresizingMaskIntoConstraints = false
-        openButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
-        openButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
 
         let accessoryVC = NSTitlebarAccessoryViewController()
-        let accessoryView = NSView()
-        accessoryView.addSubview(openButton)
+        let accessoryContainer = NSView(frame: NSRect(x: 0, y: 0, width: 36, height: 28))
+        accessoryContainer.addSubview(openButton)
         NSLayoutConstraint.activate([
-            openButton.trailingAnchor.constraint(equalTo: accessoryView.trailingAnchor, constant: -8),
-            openButton.centerYAnchor.constraint(equalTo: accessoryView.centerYAnchor),
+            openButton.centerXAnchor.constraint(equalTo: accessoryContainer.centerXAnchor),
+            openButton.centerYAnchor.constraint(equalTo: accessoryContainer.centerYAnchor),
+            openButton.widthAnchor.constraint(equalToConstant: 28),
+            openButton.heightAnchor.constraint(equalToConstant: 22),
         ])
-        accessoryVC.view = accessoryView
-        accessoryVC.layoutAttribute = .trailing
+        accessoryVC.view = accessoryContainer
+        accessoryVC.layoutAttribute = .right
         window?.addTitlebarAccessoryViewController(accessoryVC)
 
         NSLayoutConstraint.activate([
