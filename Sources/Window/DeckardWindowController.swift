@@ -632,7 +632,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         }
 
         let turns = usage.turnCount
-        let text = "\(usage.shortModel) · \(turns) turn\(turns == 1 ? "" : "s") · Context: \(usage.contextString)  "
+        let text = "\(usage.shortModel) · \(turns) turn\(turns == 1 ? "" : "s") · Context: \(usage.contextString)     "
         let para = NSMutableParagraphStyle()
         para.alignment = .right
         let attr = NSMutableAttributedString(string: text)
