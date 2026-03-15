@@ -293,20 +293,21 @@ class TerminalNSView: NSView {
             return
         }
 
-        // Use macOS text input system for proper text handling
-        // (handles Shift+letters, IME, dead keys, etc.)
+        // Use macOS text input system to get the proper text for this key
+        // (handles Shift+letters, dead keys, Option+key combos, etc.)
         keyTextAccumulator = []
         interpretKeyEvents([event])
 
-        // Send any accumulated text to the terminal
         if let texts = keyTextAccumulator, !texts.isEmpty {
-            for text in texts {
-                text.withCString { ptr in
-                    ghostty_surface_text(surface, ptr, UInt(text.utf8.count))
-                }
+            // Send as a key event WITH text — not ghostty_surface_text which
+            // triggers bracketed paste mode ("Pasting text..." in Claude)
+            let text = texts.joined()
+            text.withCString { ptr in
+                input.text = ptr
+                _ = ghostty_surface_key(surface, input)
             }
         } else {
-            // No text produced — send as a raw key event (arrows, function keys, etc.)
+            // No text produced — send as raw key (arrows, function keys, etc.)
             _ = ghostty_surface_key(surface, input)
         }
         keyTextAccumulator = nil
