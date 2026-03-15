@@ -375,14 +375,15 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
         let initialInput: String?
         if isClaude {
-            let pathPrefix = "export PATH=\"$DECKARD_BIN_DIR:$PATH\"; "
+            // stty -echo suppresses the command flash before clear runs
+            let prefix = "stty -echo; export PATH=\"$DECKARD_BIN_DIR:$PATH\"; clear; stty echo; "
             if let sid = sessionIdToResume {
-                initialInput = "\(pathPrefix)clear; claude --resume \(sid)\n"
+                initialInput = "\(prefix)claude --resume \(sid)\n"
             } else {
-                initialInput = "\(pathPrefix)clear; claude\n"
+                initialInput = "\(prefix)claude\n"
             }
         } else {
-            initialInput = "clear\n"
+            initialInput = "stty -echo; clear; stty echo\n"
         }
 
         surfaceView.createSurface(
