@@ -185,7 +185,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         rightPane.addSubview(terminalContainerView)
 
         NSLayoutConstraint.activate([
-            tabBar.topAnchor.constraint(equalTo: rightPane.topAnchor, constant: 6),
+            tabBar.topAnchor.constraint(equalTo: rightPane.topAnchor, constant: 0),
             tabBar.leadingAnchor.constraint(equalTo: rightPane.leadingAnchor),
             tabBar.trailingAnchor.constraint(equalTo: rightPane.trailingAnchor),
             tabBar.heightAnchor.constraint(equalToConstant: 28),
