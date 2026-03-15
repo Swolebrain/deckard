@@ -153,21 +153,24 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         sidebarStackView.translatesAutoresizingMaskIntoConstraints = false
         sidebarView.addSubview(sidebarStackView)
 
-        // Hint at bottom of sidebar
-        let hint = NSTextField(labelWithString: "\u{2318}O Open Project")
-        hint.font = .systemFont(ofSize: 10)
-        hint.textColor = .tertiaryLabelColor
-        hint.alignment = .center
-        hint.translatesAutoresizingMaskIntoConstraints = false
-        sidebarView.addSubview(hint)
+        // Open project button in the top-left area (next to traffic lights)
+        let openButton = NSButton(image: NSImage(systemSymbolName: "folder.badge.plus", accessibilityDescription: "Open Project")!, target: self, action: #selector(openProjectClicked))
+        openButton.bezelStyle = .recessed
+        openButton.isBordered = false
+        openButton.contentTintColor = .secondaryLabelColor
+        openButton.toolTip = "Open Project (\u{2318}O)"
+        openButton.translatesAutoresizingMaskIntoConstraints = false
+        sidebarView.addSubview(openButton)
 
         NSLayoutConstraint.activate([
+            openButton.topAnchor.constraint(equalTo: sidebarView.topAnchor, constant: 4),
+            openButton.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor, constant: -6),
+            openButton.widthAnchor.constraint(equalToConstant: 24),
+            openButton.heightAnchor.constraint(equalToConstant: 24),
+
             sidebarStackView.topAnchor.constraint(equalTo: sidebarView.topAnchor, constant: 28),
             sidebarStackView.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
             sidebarStackView.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
-
-            hint.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor, constant: -6),
-            hint.centerXAnchor.constraint(equalTo: sidebarView.centerXAnchor),
         ])
 
         // Right pane: tab bar + terminal
@@ -725,6 +728,10 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         }
     }
 
+    @objc private func openProjectClicked() {
+        AppDelegate.shared?.openProjectPicker()
+    }
+
     @objc private func projectRowClicked(_ sender: TabRowView) {
         selectProject(at: sender.index)
     }
@@ -1190,6 +1197,7 @@ class AddTabButton: NSView {
         label.textColor = .secondaryLabelColor
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
+        toolTip = "New Claude tab (\u{2318}T)\nRight-click: new Terminal (\u{21E7}\u{2318}T)"
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)
         NSLayoutConstraint.activate([
