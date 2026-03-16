@@ -77,4 +77,36 @@ class SessionManager {
         autosaveTimer?.invalidate()
         autosaveTimer = nil
     }
+
+    // MARK: - Session Name Persistence
+
+    private let sessionNamesURL: URL = {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let deckardDir = appSupport.appendingPathComponent("Deckard")
+        try? FileManager.default.createDirectory(at: deckardDir, withIntermediateDirectories: true)
+        return deckardDir.appendingPathComponent("session-names.json")
+    }()
+
+    private var cachedSessionNames: [String: String]?
+
+    func loadSessionNames() -> [String: String] {
+        if let cached = cachedSessionNames { return cached }
+        guard let data = try? Data(contentsOf: sessionNamesURL),
+              let dict = try? JSONDecoder().decode([String: String].self, from: data) else {
+            cachedSessionNames = [:]
+            return [:]
+        }
+        cachedSessionNames = dict
+        return dict
+    }
+
+    func saveSessionName(sessionId: String, name: String) {
+        var names = loadSessionNames()
+        names[sessionId] = name
+        cachedSessionNames = names
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let data = try? encoder.encode(names) else { return }
+        try? data.write(to: sessionNamesURL, options: .atomic)
+    }
 }

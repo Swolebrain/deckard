@@ -89,6 +89,8 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     private let sidebarStackView = ReorderableStackView()
     private let rightPane = NSView()
     private let tabBar = ReorderableHStackView()  // horizontal tab bar
+    private var isRebuildingTabBar = false
+    private var needsTabBarRebuild = false
     private let terminalContainerView = NSView()
     private let contextProgressBar = NSView()
     private var contextProgressFill = NSView()
@@ -413,6 +415,13 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         recentlyClosedProjects.removeAll { $0.path == project.path }
         recentlyClosedProjects.append(snapshot)
 
+        // Persist session names for claude tabs so they survive app restarts
+        for tab in project.tabs where tab.isClaude {
+            if let sid = tab.sessionId, !sid.isEmpty {
+                SessionManager.shared.saveSessionName(sessionId: sid, name: tab.name)
+            }
+        }
+
         // Destroy all surfaces
         for tab in project.tabs {
             tab.surfaceView.destroySurface()
@@ -575,22 +584,25 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     private func showTab(_ tab: TabItem) {
         welcomeLabel?.isHidden = true
 
-        // Remove previous overlay and terminal
+        let view = tab.surfaceView
+
+        // Hide the previous surface instead of removing it (avoids Metal context teardown)
         currentOverlay?.removeFromSuperview()
         currentOverlay = nil
-        currentTerminalView?.removeFromSuperview()
+        currentTerminalView?.isHidden = true
 
-        let view = tab.surfaceView
-        view.translatesAutoresizingMaskIntoConstraints = false
-
-        // Add surface view first (bottom)
-        terminalContainerView.addSubview(view)
-        NSLayoutConstraint.activate([
-            view.topAnchor.constraint(equalTo: terminalContainerView.topAnchor),
-            view.bottomAnchor.constraint(equalTo: terminalContainerView.bottomAnchor),
-            view.leadingAnchor.constraint(equalTo: terminalContainerView.leadingAnchor),
-            view.trailingAnchor.constraint(equalTo: terminalContainerView.trailingAnchor),
-        ])
+        // Add to container only once; subsequent switches just unhide
+        if view.superview !== terminalContainerView {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            terminalContainerView.addSubview(view)
+            NSLayoutConstraint.activate([
+                view.topAnchor.constraint(equalTo: terminalContainerView.topAnchor),
+                view.bottomAnchor.constraint(equalTo: terminalContainerView.bottomAnchor),
+                view.leadingAnchor.constraint(equalTo: terminalContainerView.leadingAnchor),
+                view.trailingAnchor.constraint(equalTo: terminalContainerView.trailingAnchor),
+            ])
+        }
+        view.isHidden = false
         currentTerminalView = view
 
         // Add opaque overlay on top if surface isn't ready yet
@@ -608,7 +620,8 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             ])
             currentOverlay = overlay
             // Safety fallback
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self, weak overlay] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self, weak overlay, weak view] in
+                view?.needsOverlay = false
                 overlay?.removeFromSuperview()
                 if self?.currentOverlay === overlay { self?.currentOverlay = nil }
             }
@@ -783,7 +796,14 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         // that doesn't correspond to an actual JSONL session file.
         if tab.sessionId == nil || tab.sessionId!.isEmpty {
             tab.sessionId = sessionId
+            SessionManager.shared.saveSessionName(sessionId: sessionId, name: tab.name)
             saveState()
+            // Start watching if this is the currently displayed tab
+            if let project = currentProject,
+               let idx = project.tabs.firstIndex(where: { $0.id == tab.id }),
+               idx == project.selectedTabIndex {
+                refreshContextBar(for: tab)
+            }
         }
     }
 
@@ -817,6 +837,9 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     func renameTab(id tabIdStr: String, name: String) {
         guard let tab = tabForSurfaceId(tabIdStr) else { return }
         tab.name = name
+        if let sid = tab.sessionId, !sid.isEmpty {
+            SessionManager.shared.saveSessionName(sessionId: sid, name: name)
+        }
         rebuildTabBar()
         saveState()
     }
@@ -933,6 +956,10 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             row.onReorder = { [weak self] fromIndex, toIndex in
                 self?.reorderProject(from: fromIndex, to: toIndex)
             }
+            row.onContextMenu = { [weak self] event in
+                guard let self = self, i < self.projects.count else { return nil }
+                return self.buildProjectContextMenu(for: self.projects[i])
+            }
             sidebarStackView.addArrangedSubview(row)
             row.leadingAnchor.constraint(equalTo: sidebarStackView.leadingAnchor).isActive = true
             row.trailingAnchor.constraint(equalTo: sidebarStackView.trailingAnchor).isActive = true
@@ -973,6 +1000,86 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         saveState()
     }
 
+    // MARK: - Project Context Menu
+
+    private class ResumeSessionInfo {
+        let project: ProjectItem
+        let sessionId: String
+        let tabName: String?
+        init(project: ProjectItem, sessionId: String, tabName: String?) {
+            self.project = project
+            self.sessionId = sessionId
+            self.tabName = tabName
+        }
+    }
+
+    private func buildProjectContextMenu(for project: ProjectItem) -> NSMenu {
+        let menu = NSMenu()
+
+        let resumeItem = NSMenuItem(title: "Resume Session", action: nil, keyEquivalent: "")
+        let resumeSubmenu = NSMenu()
+
+        let sessions = ContextMonitor.shared.listSessions(forProjectPath: project.path)
+        let openSessionIds = Set(project.tabs.compactMap { $0.sessionId })
+        let resumable = sessions.filter { !openSessionIds.contains($0.sessionId) }
+
+        if resumable.isEmpty {
+            let emptyItem = NSMenuItem(title: "No sessions to resume", action: nil, keyEquivalent: "")
+            emptyItem.isEnabled = false
+            resumeSubmenu.addItem(emptyItem)
+        } else {
+            let savedNames = SessionManager.shared.loadSessionNames()
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .abbreviated
+
+            for session in resumable.prefix(50) {
+                let timeStr = formatter.localizedString(for: session.modificationDate, relativeTo: Date())
+                let savedName = savedNames[session.sessionId]
+
+                let title: String
+                if let name = savedName, !name.isEmpty {
+                    title = "\(timeStr) \u{2014} \(name)"
+                } else if !session.firstUserMessage.isEmpty {
+                    let msg = session.firstUserMessage.count > 60
+                        ? String(session.firstUserMessage.prefix(60)) + "\u{2026}"
+                        : session.firstUserMessage
+                    title = "\(timeStr) \u{2014} \(msg)"
+                } else {
+                    title = timeStr
+                }
+
+                let item = NSMenuItem(title: title, action: #selector(resumeSessionMenuAction(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = ResumeSessionInfo(project: project, sessionId: session.sessionId, tabName: savedName)
+                resumeSubmenu.addItem(item)
+            }
+        }
+
+        resumeItem.submenu = resumeSubmenu
+        menu.addItem(resumeItem)
+
+        return menu
+    }
+
+    @objc private func resumeSessionMenuAction(_ sender: NSMenuItem) {
+        guard let info = sender.representedObject as? ResumeSessionInfo else { return }
+        let project = info.project
+        let sessionId = info.sessionId
+
+        createTabInProject(project, isClaude: true, name: info.tabName, sessionIdToResume: sessionId)
+        project.selectedTabIndex = project.tabs.count - 1
+
+        if let pi = projects.firstIndex(where: { $0.id == project.id }) {
+            if pi == selectedProjectIndex {
+                rebuildTabBar()
+                showTab(project.tabs[project.selectedTabIndex])
+            } else {
+                selectProject(at: pi)
+            }
+        }
+        saveState()
+    }
+
     private func updateSidebarSelection() {
         for (i, view) in sidebarStackView.arrangedSubviews.enumerated() {
             if let row = view as? TabRowView {
@@ -991,7 +1098,19 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
     // MARK: - Tab Bar (horizontal tabs within selected project)
 
+    private var isTabEditing: Bool {
+        tabBar.arrangedSubviews.contains { ($0 as? HorizontalTabView)?.isEditing == true }
+    }
+
     private func rebuildTabBar() {
+        guard !isRebuildingTabBar else { return }
+        if isTabEditing {
+            needsTabBarRebuild = true
+            return
+        }
+        isRebuildingTabBar = true
+        defer { isRebuildingTabBar = false }
+
         tabBar.arrangedSubviews.forEach { $0.removeFromSuperview() }
         guard let project = currentProject else { return }
 
@@ -1007,13 +1126,16 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
                 isSelected: isSelected,
                 index: i,
                 target: self,
-                clickAction: #selector(tabBarClicked(_:)),
-                closeAction: #selector(tabBarCloseClicked(_:))
+                clickAction: #selector(tabBarClicked(_:))
             )
             tabView.onRename = { [weak self] newName in
                 guard let self = self, let project = self.currentProject,
                       i < project.tabs.count else { return }
-                project.tabs[i].name = newName
+                let tab = project.tabs[i]
+                tab.name = newName
+                if let sid = tab.sessionId, !sid.isEmpty {
+                    SessionManager.shared.saveSessionName(sessionId: sid, name: newName)
+                }
                 self.rebuildTabBar()
                 self.saveState()
             }
@@ -1026,6 +1148,11 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
                 tab.name = sameType.count <= 1 ? base : "\(base) #\(i + 1)"
                 self.rebuildTabBar()
                 self.saveState()
+            }
+            tabView.onEditingFinished = { [weak self] in
+                guard let self = self, self.needsTabBarRebuild else { return }
+                self.needsTabBarRebuild = false
+                self.rebuildTabBar()
             }
             tabBar.addArrangedSubview(tabView)
         }
@@ -1137,6 +1264,7 @@ class TabRowView: NSView, NSTextFieldDelegate, NSDraggingSource {
     var onClearName: (() -> Void)?
     var onClose: (() -> Void)?
     var onReorder: ((Int, Int) -> Void)?
+    var onContextMenu: ((NSEvent) -> NSMenu?)?
     let index: Int
     private let label: NSTextField
     private let badgeContainer: NSStackView
@@ -1288,6 +1416,12 @@ class TabRowView: NSView, NSTextFieldDelegate, NSDraggingSource {
         }
     }
 
+    override func rightMouseDown(with event: NSEvent) {
+        if let menu = onContextMenu?(event) {
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
+        }
+    }
+
     override func mouseDragged(with event: NSEvent) {
         guard let start = dragStartPoint else { return }
         let current = convert(event.locationInWindow, from: nil)
@@ -1371,12 +1505,12 @@ class HorizontalTabView: NSView, NSTextFieldDelegate, NSDraggingSource {
     override var mouseDownCanMoveWindow: Bool { false }
     let index: Int
     private let label: NSTextField
-    private let closeButton: NSButton
     private weak var target: AnyObject?
     private let clickAction: Selector
     private var isSelected: Bool
     var onRename: ((String) -> Void)?
     var onClearName: (() -> Void)?
+    var onEditingFinished: (() -> Void)?
     private var rawName: String
 
     private var displayTitle: String
@@ -1385,8 +1519,9 @@ class HorizontalTabView: NSView, NSTextFieldDelegate, NSDraggingSource {
     private var badgeDot: NSView?
 
     init(displayTitle: String, editableName: String, isClaude: Bool = false,
-         badgeState: TabItem.BadgeState = .none, isSelected: Bool, index: Int,
-         target: AnyObject, clickAction: Selector, closeAction: Selector) {
+         badgeState: TabItem.BadgeState = .none,
+         isSelected: Bool, index: Int,
+         target: AnyObject, clickAction: Selector) {
         self.index = index
         self.isSelected = isSelected
         self.target = target
@@ -1401,20 +1536,9 @@ class HorizontalTabView: NSView, NSTextFieldDelegate, NSDraggingSource {
         label.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         label.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
 
-        closeButton = NSButton(title: "\u{00D7}", target: nil, action: nil)
-        closeButton.bezelStyle = .inline
-        closeButton.isBordered = false
-        closeButton.font = .systemFont(ofSize: 12)
-        closeButton.contentTintColor = .tertiaryLabelColor
-        closeButton.toolTip = "Close Tab (\u{2318}W)"
-
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
         wantsLayer = true
-
-        closeButton.target = target
-        closeButton.action = closeAction
-        closeButton.tag = index
 
         // Badge dot for Claude tabs — positioned on the right by layout constraints below
         if isClaude {
@@ -1437,21 +1561,12 @@ class HorizontalTabView: NSView, NSTextFieldDelegate, NSDraggingSource {
         }
 
         label.translatesAutoresizingMaskIntoConstraints = false
-        closeButton.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)
-        addSubview(closeButton)
-        closeButton.isHidden = true
 
-        // Layout: [close] [label] [badge]  — close on left, badge on right
-        let labelLeading = closeButton.trailingAnchor.constraint(equalTo: label.leadingAnchor, constant: -2)
-
+        // Layout: [label] [badge]
         var constraints = [
             heightAnchor.constraint(equalToConstant: 28),
-            closeButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
-            closeButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            closeButton.widthAnchor.constraint(equalToConstant: 16),
-            closeButton.heightAnchor.constraint(equalToConstant: 16),
-            labelLeading,
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
             label.centerYAnchor.constraint(equalTo: centerYAnchor),
         ]
 
@@ -1468,19 +1583,9 @@ class HorizontalTabView: NSView, NSTextFieldDelegate, NSDraggingSource {
             layer?.backgroundColor = NSColor.selectedContentBackgroundColor.withAlphaComponent(0.2).cgColor
         }
 
-        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
-        addTrackingArea(area)
     }
 
     required init?(coder: NSCoder) { fatalError() }
-
-    override func mouseEntered(with event: NSEvent) {
-        closeButton.isHidden = false
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        closeButton.isHidden = true
-    }
 
     private var dragStartPoint: NSPoint?
 
@@ -1537,7 +1642,7 @@ class HorizontalTabView: NSView, NSTextFieldDelegate, NSDraggingSource {
         label.currentEditor()?.selectAll(nil)
     }
 
-    private var isEditing = false
+    private(set) var isEditing = false
 
     private func finishEditing() {
         guard isEditing else { return }
@@ -1556,6 +1661,7 @@ class HorizontalTabView: NSView, NSTextFieldDelegate, NSDraggingSource {
         } else {
             label.stringValue = displayTitle
         }
+        onEditingFinished?()
     }
 
     func controlTextDidEndEditing(_ obj: Notification) {
@@ -1569,14 +1675,17 @@ class HorizontalTabView: NSView, NSTextFieldDelegate, NSDraggingSource {
             return true
         }
         if sel == #selector(cancelOperation(_:)) {
+            isEditing = false
             label.stringValue = displayTitle
             label.isEditable = false
             label.isSelectable = false
             window?.makeFirstResponder(nil)
+            onEditingFinished?()
             return true
         }
         return false
     }
+
 }
 
 // MARK: - AddTabButton

@@ -39,6 +39,70 @@ class ContextMonitor {
         }
     }
 
+    struct SessionInfo {
+        let sessionId: String
+        let modificationDate: Date
+        let firstUserMessage: String
+    }
+
+    /// Lists all Claude sessions for a project, sorted by most recent first.
+    func listSessions(forProjectPath projectPath: String) -> [SessionInfo] {
+        let encoded = projectPath.replacingOccurrences(of: "/", with: "-")
+        let dir = NSHomeDirectory() + "/.claude/projects/\(encoded)"
+        let fm = FileManager.default
+
+        guard let files = try? fm.contentsOfDirectory(atPath: dir) else { return [] }
+
+        var results: [SessionInfo] = []
+
+        for file in files where file.hasSuffix(".jsonl") {
+            let sessionId = String(file.dropLast(6))
+            let filePath = dir + "/" + file
+
+            guard let attrs = try? fm.attributesOfItem(atPath: filePath),
+                  let modDate = attrs[.modificationDate] as? Date else { continue }
+
+            var firstMessage = ""
+
+            if let fh = FileHandle(forReadingAtPath: filePath) {
+                let headData = fh.readData(ofLength: 8192)
+                try? fh.close()
+
+                if let headStr = String(data: headData, encoding: .utf8) {
+                    let lines = headStr.components(separatedBy: "\n")
+                    for line in lines where !line.isEmpty {
+                        guard let ld = line.data(using: .utf8),
+                              let json = try? JSONSerialization.jsonObject(with: ld) as? [String: Any] else { continue }
+
+                        let type = json["type"] as? String ?? ""
+                        if type == "user" && firstMessage.isEmpty {
+                            if let msg = json["message"] as? [String: Any] {
+                                if let content = msg["content"] as? String {
+                                    firstMessage = content
+                                } else if let contentArr = msg["content"] as? [[String: Any]] {
+                                    firstMessage = contentArr.first(where: { $0["type"] as? String == "text" })?["text"] as? String ?? ""
+                                }
+                            }
+                            break
+                        }
+                    }
+                }
+            }
+
+            firstMessage = firstMessage.components(separatedBy: "\n").first ?? ""
+            firstMessage = firstMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            results.append(SessionInfo(
+                sessionId: sessionId,
+                modificationDate: modDate,
+                firstUserMessage: firstMessage
+            ))
+        }
+
+        results.sort { $0.modificationDate > $1.modificationDate }
+        return results
+    }
+
     /// Get context usage for a session by reading its JSONL file.
     func getUsage(sessionId: String, projectPath: String) -> ContextUsage? {
         let encoded = projectPath.replacingOccurrences(of: "/", with: "-")
