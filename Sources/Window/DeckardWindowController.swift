@@ -80,8 +80,8 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     private let rightPane = NSView()
     private let tabBar = ReorderableHStackView()  // horizontal tab bar
     private let terminalContainerView = NSView()
-    private let contextStatusBar = NSTextField(labelWithString: "")
-    private var contextStatusDivider: NSView?
+    private let contextProgressBar = NSView()
+    private var contextProgressFill = NSView()
     private var contextTimer: Timer?
     private var currentTerminalView: TerminalNSView?
     private var welcomeLabel: NSTextField?
@@ -239,43 +239,26 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             terminalContainerView.bottomAnchor.constraint(equalTo: rightPane.bottomAnchor),
         ])
 
-        // Context usage status bar (overlays the bottom of the terminal)
-        contextStatusBar.translatesAutoresizingMaskIntoConstraints = false
-        contextStatusBar.font = .monospacedSystemFont(ofSize: 10, weight: .regular)
-        contextStatusBar.textColor = .secondaryLabelColor
-        contextStatusBar.alignment = .right
-        contextStatusBar.usesSingleLineMode = true
-        // Replace cell with vertically centering one
-        let cell = VerticallyCenteredTextFieldCell(textCell: "")
-        cell.isEditable = false
-        cell.isBordered = false
-        cell.drawsBackground = false
-        cell.font = contextStatusBar.font
-        cell.textColor = contextStatusBar.textColor
-        cell.alignment = .right
-        contextStatusBar.cell = cell
-        contextStatusBar.wantsLayer = true
-        contextStatusBar.layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.9).cgColor
-        contextStatusBar.isHidden = true
-        rightPane.addSubview(contextStatusBar)
+        // Context usage progress bar (1px line at bottom of terminal)
+        contextProgressBar.translatesAutoresizingMaskIntoConstraints = false
+        contextProgressBar.wantsLayer = true
+        contextProgressBar.layer?.backgroundColor = NSColor.clear.cgColor
+        contextProgressBar.isHidden = true
+        rightPane.addSubview(contextProgressBar)
 
-        let statusDivider = NSView()
-        statusDivider.wantsLayer = true
-        statusDivider.layer?.backgroundColor = NSColor.separatorColor.cgColor
-        statusDivider.translatesAutoresizingMaskIntoConstraints = false
-        statusDivider.isHidden = true
-        rightPane.addSubview(statusDivider)
-        self.contextStatusDivider = statusDivider
+        contextProgressFill.translatesAutoresizingMaskIntoConstraints = false
+        contextProgressFill.wantsLayer = true
+        contextProgressFill.layer?.backgroundColor = NSColor(red: 0.4, green: 0.7, blue: 0.4, alpha: 1.0).cgColor
+        contextProgressBar.addSubview(contextProgressFill)
 
         NSLayoutConstraint.activate([
-            contextStatusBar.leadingAnchor.constraint(equalTo: rightPane.leadingAnchor),
-            contextStatusBar.trailingAnchor.constraint(equalTo: rightPane.trailingAnchor),
-            contextStatusBar.bottomAnchor.constraint(equalTo: rightPane.bottomAnchor),
-            contextStatusBar.heightAnchor.constraint(equalToConstant: 22),
-            statusDivider.leadingAnchor.constraint(equalTo: rightPane.leadingAnchor),
-            statusDivider.trailingAnchor.constraint(equalTo: rightPane.trailingAnchor),
-            statusDivider.bottomAnchor.constraint(equalTo: contextStatusBar.topAnchor),
-            statusDivider.heightAnchor.constraint(equalToConstant: 1),
+            contextProgressBar.leadingAnchor.constraint(equalTo: rightPane.leadingAnchor),
+            contextProgressBar.trailingAnchor.constraint(equalTo: rightPane.trailingAnchor),
+            contextProgressBar.bottomAnchor.constraint(equalTo: rightPane.bottomAnchor),
+            contextProgressBar.heightAnchor.constraint(equalToConstant: 1),
+            contextProgressFill.leadingAnchor.constraint(equalTo: contextProgressBar.leadingAnchor),
+            contextProgressFill.topAnchor.constraint(equalTo: contextProgressBar.topAnchor),
+            contextProgressFill.bottomAnchor.constraint(equalTo: contextProgressBar.bottomAnchor),
         ])
 
         splitView.addArrangedSubview(sidebarView)
@@ -583,70 +566,48 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         refreshContextBar(for: tab)
     }
 
+    private var progressWidthConstraint: NSLayoutConstraint?
+
     private func refreshContextBar(for tab: TabItem) {
         contextTimer?.invalidate()
         contextTimer = nil
 
-        let showBar = UserDefaults.standard.object(forKey: "showContextBar") as? Bool ?? true
-        if tab.isClaude && showBar {
-            contextStatusBar.isHidden = false
-            contextStatusDivider?.isHidden = false
+        if tab.isClaude {
+            contextProgressBar.isHidden = false
             updateContextUsage(for: tab)
             contextTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
                 self?.updateContextUsage(for: tab)
             }
         } else {
-            contextStatusBar.isHidden = true
-            contextStatusDivider?.isHidden = true
-        }
-    }
-
-    func toggleContextBar() {
-        let current = UserDefaults.standard.object(forKey: "showContextBar") as? Bool ?? true
-        UserDefaults.standard.set(!current, forKey: "showContextBar")
-        if let project = currentProject {
-            let tab = project.tabs[project.selectedTabIndex]
-            refreshContextBar(for: tab)
+            contextProgressBar.isHidden = true
         }
     }
 
     private func updateContextUsage(for tab: TabItem) {
         guard let sessionId = tab.sessionId,
-              let project = currentProject else {
-            contextStatusBar.stringValue = "  Context: waiting...  "
+              let project = currentProject,
+              let usage = ContextMonitor.shared.getUsage(sessionId: sessionId, projectPath: project.path) else {
+            progressWidthConstraint?.isActive = false
+            progressWidthConstraint = contextProgressFill.widthAnchor.constraint(equalToConstant: 0)
+            progressWidthConstraint?.isActive = true
             return
         }
 
-        guard let usage = ContextMonitor.shared.getUsage(sessionId: sessionId, projectPath: project.path) else {
-            contextStatusBar.stringValue = "  Context: loading...  "
-            return
-        }
+        let fraction = CGFloat(usage.percentage) / 100.0
+        let barWidth = contextProgressBar.bounds.width * fraction
 
-        let pct = Int(usage.percentage)
         let color: NSColor
-        switch pct {
+        switch Int(usage.percentage) {
         case 0..<50: color = NSColor(red: 0.4, green: 0.7, blue: 0.4, alpha: 1.0)
         case 50..<75: color = .systemYellow
         case 75..<90: color = .systemOrange
         default: color = .systemRed
         }
 
-        let turns = usage.turnCount
-        let text = "\(usage.shortModel) · \(turns) turn\(turns == 1 ? "" : "s") · Context: \(usage.contextString)"
-        let para = NSMutableParagraphStyle()
-        para.alignment = .right
-        para.tailIndent = -12
-        let attr = NSMutableAttributedString(string: text)
-        let fullRange = NSRange(location: 0, length: attr.length)
-        attr.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: 10, weight: .regular), range: fullRange)
-        attr.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: fullRange)
-        attr.addAttribute(.paragraphStyle, value: para, range: fullRange)
-        if let range = text.range(of: "(\(pct)%)") {
-            let nsRange = NSRange(range, in: text)
-            attr.addAttribute(.foregroundColor, value: color, range: nsRange)
-            attr.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: 10, weight: .bold), range: nsRange)
-        }
-        contextStatusBar.attributedStringValue = attr
+        contextProgressFill.layer?.backgroundColor = color.cgColor
+        progressWidthConstraint?.isActive = false
+        progressWidthConstraint = contextProgressFill.widthAnchor.constraint(equalToConstant: barWidth)
+        progressWidthConstraint?.isActive = true
     }
 
     func focusedSurface() -> ghostty_surface_t? {
@@ -1811,19 +1772,6 @@ class SidebarDropZone: NSView {
     }
 }
 
-class VerticallyCenteredTextFieldCell: NSTextFieldCell {
-    override func titleRect(forBounds rect: NSRect) -> NSRect {
-        var r = super.titleRect(forBounds: rect)
-        let textHeight = attributedStringValue.size().height
-        r.origin.y = rect.origin.y + (rect.height - textHeight) / 2
-        r.size.height = textHeight
-        return r
-    }
-
-    override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
-        super.drawInterior(withFrame: titleRect(forBounds: cellFrame), in: controlView)
-    }
-}
 
 extension Collection {
     subscript(safe index: Index) -> Element? {
