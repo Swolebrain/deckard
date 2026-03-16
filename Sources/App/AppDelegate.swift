@@ -8,7 +8,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var ghosttyApp: DeckardGhosttyApp!
     var windowController: DeckardWindowController?
     private let hookHandler = HookHandler()
-    let updateController = UpdateController()
+
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
@@ -25,11 +25,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // Set the GHOSTTY_RESOURCES_DIR so shell integration and terminfo work.
-        // Use ghostty's own resources directory from the submodule build.
-        let ghosttyResources = Bundle.main.bundlePath + "/../ghostty/zig-out/share/ghostty"
-        if FileManager.default.fileExists(atPath: ghosttyResources) {
-            setenv("GHOSTTY_RESOURCES_DIR", ghosttyResources, 1)
+        // Set the GHOSTTY_RESOURCES_DIR so shell integration, terminfo, and themes work.
+        // Prefer the submodule build path (development), fall back to the app bundle (release).
+        let devResources = Bundle.main.bundlePath + "/../ghostty/zig-out/share/ghostty"
+        let bundleResources = Bundle.main.resourcePath ?? ""
+        if FileManager.default.fileExists(atPath: devResources) {
+            setenv("GHOSTTY_RESOURCES_DIR", devResources, 1)
+        } else if FileManager.default.fileExists(atPath: bundleResources + "/themes") {
+            setenv("GHOSTTY_RESOURCES_DIR", bundleResources, 1)
+        }
+
+        // Initialize theme manager and compute initial theme colors.
+        ThemeManager.shared.loadAvailableThemes()
+        if let savedTheme = ThemeManager.shared.currentThemeName,
+           let themeInfo = ThemeManager.shared.availableThemes.first(where: { $0.name == savedTheme }),
+           let colors = ThemeManager.parseThemeColors(at: themeInfo.path) {
+            ThemeManager.shared.updateColors(background: colors.background, foreground: colors.foreground)
+        } else {
+            ThemeManager.shared.updateColors(
+                background: ghosttyApp.defaultBackgroundColor,
+                foreground: ghosttyApp.defaultForegroundColor
+            )
         }
 
         // Set up the main menu.
@@ -54,9 +70,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Set socket path in environment for child processes.
         setenv("DECKARD_SOCKET_PATH", ControlSocket.shared.path, 1)
 
-        // Start the auto-updater.
-        updateController.startUpdater()
-
         // Create and show the main window.
         windowController = DeckardWindowController(ghosttyApp: ghosttyApp)
         hookHandler.windowController = windowController
@@ -64,8 +77,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        // Allow quit during update installation.
-        if updateController.isInstalling { return .terminateNow }
         return .terminateNow
     }
 
@@ -109,7 +120,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: "About Deckard", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Check for Updates...", action: #selector(checkForUpdates), keyEquivalent: "")
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: "")
         settingsItem.setShortcut(for: .settings)
         appMenu.addItem(settingsItem)
@@ -250,7 +260,4 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         SettingsWindowController.shared.show()
     }
 
-    @objc func checkForUpdates() {
-        updateController.checkForUpdates()
-    }
 }

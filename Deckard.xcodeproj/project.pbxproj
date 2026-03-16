@@ -8,9 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0D4C913A8846099ED84D5816 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F505D5B7348F40C2CBD6F83 /* AppDelegate.swift */; };
-		0E3E58425DB2C3A859EA0ADA /* UpdateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1846BAAA05144280A0788D /* UpdateController.swift */; };
-		214FB56FE27976FFA0E33CE3 /* UpdateViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE6A767090CB9D9078C780A /* UpdateViewModel.swift */; };
-		2B88AE148A7F948F9A9C2E9D /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1A1660206E09A9AEECF7BFDA /* Sparkle */; };
+
 		AABB0001AABB0001AABB0001 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = AABB0002AABB0002AABB0002 /* KeyboardShortcuts */; };
 		2D322E22D0679FD39D688539 /* SessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BE2AA0719D32ACCD1549184 /* SessionState.swift */; };
 		2E4FF6C3438B5F0E73C4FA87 /* ContextMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5FD7F070DDB4216278EFDE6 /* ContextMonitor.swift */; };
@@ -21,17 +19,19 @@
 		70265FBBA52FB6E60AE4EFFE /* ProjectPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE07F0C0F9D62925EF195F7 /* ProjectPicker.swift */; };
 		785E265799B23197E43628CF /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EB9FA577948DC32DED47B7 /* NotificationManager.swift */; };
 		7E500DC8ECF3F7D073A098A4 /* ControlSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = D08100E22096E7498D571A20 /* ControlSocket.swift */; };
-		9EA9D663A1123CA5BC0DDDD6 /* UpdateDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F7C668640B83CD8E2DD3CF /* UpdateDriver.swift */; };
+
 		A0FF9B9E99BC8B33FDCAB7E5 /* HookHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2B375A023FEBCB272DCFD7 /* HookHandler.swift */; };
-		EC5216EB6832E81D0BF41280 /* UpdateDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3088990C379385805D6B8EEA /* UpdateDelegate.swift */; };
+
 		F14F059C3523C8983BFF01FD /* SurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1819508589B0D94AC0310DDB /* SurfaceView.swift */; };
 		AABB0004AABB0004AABB0004 /* ShortcutNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB0005AABB0005AABB0005 /* ShortcutNames.swift */; };
+		CC110001CC110001CC110001 /* ThemeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC110002CC110002CC110002 /* ThemeColors.swift */; };
+		CC110003CC110003CC110003 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC110004CC110004CC110004 /* ThemeManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		00F7C668640B83CD8E2DD3CF /* UpdateDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateDriver.swift; sourceTree = "<group>"; };
+
 		1819508589B0D94AC0310DDB /* SurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceView.swift; sourceTree = "<group>"; };
-		3088990C379385805D6B8EEA /* UpdateDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateDelegate.swift; sourceTree = "<group>"; };
+
 		4A2B375A023FEBCB272DCFD7 /* HookHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookHandler.swift; sourceTree = "<group>"; };
 		4BE07F0C0F9D62925EF195F7 /* ProjectPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectPicker.swift; sourceTree = "<group>"; };
 		6C2CC70A6932271D0EE46154 /* Deckard-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Deckard-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -43,11 +43,13 @@
 		A5EB9FA577948DC32DED47B7 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		A605D524B1CC5AAC25147C77 /* DeckardGhosttyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckardGhosttyApp.swift; sourceTree = "<group>"; };
 		D08100E22096E7498D571A20 /* ControlSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlSocket.swift; sourceTree = "<group>"; };
-		DA1846BAAA05144280A0788D /* UpdateController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateController.swift; sourceTree = "<group>"; };
+
 		DD37F7C8CC5243DCF0A1346E /* SettingsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindow.swift; sourceTree = "<group>"; };
-		DDE6A767090CB9D9078C780A /* UpdateViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateViewModel.swift; sourceTree = "<group>"; };
+
 		E5FD7F070DDB4216278EFDE6 /* ContextMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextMonitor.swift; sourceTree = "<group>"; };
 		AABB0005AABB0005AABB0005 /* ShortcutNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutNames.swift; sourceTree = "<group>"; };
+		CC110002CC110002CC110002 /* ThemeColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeColors.swift; sourceTree = "<group>"; };
+		CC110004CC110004CC110004 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -55,7 +57,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2B88AE148A7F948F9A9C2E9D /* Sparkle in Frameworks */,
 				AABB0001AABB0001AABB0001 /* KeyboardShortcuts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -86,6 +87,8 @@
 			children = (
 				A605D524B1CC5AAC25147C77 /* DeckardGhosttyApp.swift */,
 				1819508589B0D94AC0310DDB /* SurfaceView.swift */,
+				CC110002CC110002CC110002 /* ThemeColors.swift */,
+				CC110004CC110004CC110004 /* ThemeManager.swift */,
 			);
 			path = Ghostty;
 			sourceTree = "<group>";
@@ -98,7 +101,7 @@
 				2BEC93BB5439FAC18DD504BA /* Detection */,
 				6C026CBEF5BFC7F5AA2A142A /* Ghostty */,
 				D37A3C1FE7FFA62F32147FC6 /* Session */,
-				D6CE69E2D6577A04DB159AF5 /* Update */,
+
 				CF4AAC55B24D890FD6CF1507 /* Window */,
 			);
 			path = Sources;
@@ -128,17 +131,6 @@
 				7BE2AA0719D32ACCD1549184 /* SessionState.swift */,
 			);
 			path = Session;
-			sourceTree = "<group>";
-		};
-		D6CE69E2D6577A04DB159AF5 /* Update */ = {
-			isa = PBXGroup;
-			children = (
-				DA1846BAAA05144280A0788D /* UpdateController.swift */,
-				3088990C379385805D6B8EEA /* UpdateDelegate.swift */,
-				00F7C668640B83CD8E2DD3CF /* UpdateDriver.swift */,
-				DDE6A767090CB9D9078C780A /* UpdateViewModel.swift */,
-			);
-			path = Update;
 			sourceTree = "<group>";
 		};
 		D8C6C048766D6149A60A67D0 /* Products */ = {
@@ -178,7 +170,6 @@
 			);
 			name = Deckard;
 			packageProductDependencies = (
-				1A1660206E09A9AEECF7BFDA /* Sparkle */,
 				AABB0002AABB0002AABB0002 /* KeyboardShortcuts */,
 			);
 			productName = Deckard;
@@ -205,7 +196,6 @@
 			mainGroup = 43CE4F9AE7C86671F16C0326;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				D1985904AEE80B97C0632EED /* XCRemoteSwiftPackageReference "Sparkle" */,
 				AABB0003AABB0003AABB0003 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -234,7 +224,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "mkdir -p \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/bin\"\ncp -f \"${PROJECT_DIR}/Resources/AppIcon.icns\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AppIcon.icns\"\ncp -f \"${PROJECT_DIR}/Resources/Credits.html\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Credits.html\"\ncp -f \"${PROJECT_DIR}/Resources/bin/claude\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/bin/claude\"\ncp -f \"${PROJECT_DIR}/Resources/bin/deckard-mcp\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/bin/deckard-mcp\"\nchmod +x \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/bin/claude\"\nchmod +x \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/bin/deckard-mcp\"\n";
+			shellScript = "mkdir -p \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/bin\"\ncp -f \"${PROJECT_DIR}/Resources/AppIcon.icns\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AppIcon.icns\"\ncp -f \"${PROJECT_DIR}/Resources/Credits.html\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Credits.html\"\ncp -f \"${PROJECT_DIR}/Resources/bin/claude\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/bin/claude\"\ncp -f \"${PROJECT_DIR}/Resources/bin/deckard-mcp\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/bin/deckard-mcp\"\nchmod +x \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/bin/claude\"\nchmod +x \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/bin/deckard-mcp\"\n# Copy Ghostty themes into the app bundle\nmkdir -p \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/themes\"\nrsync -a --delete \"${PROJECT_DIR}/ghostty/zig-out/share/ghostty/themes/\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/themes/\"\n";
 		};
 		5F4D41CAC0165B5C0FC120FE /* Set App Icon */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -272,12 +262,10 @@
 				2D322E22D0679FD39D688539 /* SessionState.swift in Sources */,
 				63A33F81DE38406C15D1259A /* SettingsWindow.swift in Sources */,
 				F14F059C3523C8983BFF01FD /* SurfaceView.swift in Sources */,
-				0E3E58425DB2C3A859EA0ADA /* UpdateController.swift in Sources */,
-				EC5216EB6832E81D0BF41280 /* UpdateDelegate.swift in Sources */,
-				9EA9D663A1123CA5BC0DDDD6 /* UpdateDriver.swift in Sources */,
-				214FB56FE27976FFA0E33CE3 /* UpdateViewModel.swift in Sources */,
 				432752F9187D2E815F617B96 /* main.swift in Sources */,
 				AABB0004AABB0004AABB0004 /* ShortcutNames.swift in Sources */,
+				CC110001CC110001CC110001 /* ThemeColors.swift in Sources */,
+				CC110003CC110003CC110003 /* ThemeManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -521,14 +509,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		D1985904AEE80B97C0632EED /* XCRemoteSwiftPackageReference "Sparkle" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sparkle-project/Sparkle";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.5.1;
-			};
-		};
+
 		AABB0003AABB0003AABB0003 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
@@ -540,11 +521,7 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		1A1660206E09A9AEECF7BFDA /* Sparkle */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = D1985904AEE80B97C0632EED /* XCRemoteSwiftPackageReference "Sparkle" */;
-			productName = Sparkle;
-		};
+
 		AABB0002AABB0002AABB0002 /* KeyboardShortcuts */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = AABB0003AABB0003AABB0003 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;

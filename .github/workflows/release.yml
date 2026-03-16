@@ -95,39 +95,6 @@ jobs:
             --wait
           xcrun stapler staple "Deckard-${{ steps.version.outputs.version }}.dmg"
 
-      - name: Sign update with EdDSA
-        if: env.SPARKLE_EDDSA_KEY != ''
-        id: sparkle_sign
-        env:
-          SPARKLE_EDDSA_KEY: ${{ secrets.SPARKLE_EDDSA_KEY }}
-        run: |
-          # Download Sparkle tools
-          SPARKLE_VERSION="2.7.5"
-          curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" | tar xJ -C /tmp
-          # Sign the DMG with EdDSA
-          SIGN_OUTPUT=$(/tmp/bin/sign_update "Deckard-${{ steps.version.outputs.version }}.dmg" --ed-key-file <(echo "$SPARKLE_EDDSA_KEY"))
-          echo "signature=$SIGN_OUTPUT" >> "$GITHUB_OUTPUT"
-
-      - name: Generate appcast entry
-        if: steps.sparkle_sign.outputs.signature != ''
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-          TAG: ${{ github.ref_name }}
-          SIGNATURE: ${{ steps.sparkle_sign.outputs.signature }}
-        run: |
-          python3 scripts/update_appcast.py \
-            --version "$VERSION" \
-            --tag "$TAG" \
-            --signature "$SIGNATURE" \
-            --dmg "Deckard-${VERSION}.dmg"
-
-      - name: Upload appcast
-        if: steps.sparkle_sign.outputs.signature != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: appcast
-          path: appcast.xml
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
