@@ -244,9 +244,7 @@ class DeckardGhosttyApp {
                 let surface = target.target.surface
                 if let titlePtr = action.action.set_title.title {
                     let title = String(cString: titlePtr)
-                    overlayLog("T2: SET_TITLE action on I/O thread (title: \"\(title)\")")
                     DispatchQueue.main.async {
-                        overlayLog("T3: SET_TITLE dispatched to main thread (title: \"\(title)\")")
                         NotificationCenter.default.post(
                             name: .deckardSurfaceTitleChanged,
                             object: nil,

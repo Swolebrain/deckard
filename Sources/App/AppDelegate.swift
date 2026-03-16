@@ -1,5 +1,4 @@
 import AppKit
-import Metal
 import GhosttyKit
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -9,16 +8,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var windowController: DeckardWindowController?
     private let hookHandler = HookHandler()
     let updateController = UpdateController()
-
-    func applicationWillFinishLaunching(_ notification: Notification) {
-        // Pre-warm Metal device discovery on a background thread.
-        // The first ghostty_surface_new() call triggers Metal.init() which spends
-        // ~1.5s on MTLCopyAllDevices(). Warming the device cache here means it's
-        // already done by the time surfaces are created in didFinishLaunching.
-        DispatchQueue.global(qos: .userInitiated).async {
-            _ = MTLCreateSystemDefaultDevice()
-        }
-    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self

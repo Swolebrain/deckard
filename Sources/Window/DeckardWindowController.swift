@@ -1,18 +1,6 @@
 import AppKit
 import GhosttyKit
 
-func overlayLog(_ msg: String) {
-    let line = "\(Date()) \(msg)\n"
-    let path = "/tmp/deckard-overlay.log"
-    if let fh = FileHandle(forWritingAtPath: path) {
-        fh.seekToEndOfFile()
-        fh.write(line.data(using: .utf8)!)
-        fh.closeFile()
-    } else {
-        FileManager.default.createFile(atPath: path, contents: line.data(using: .utf8))
-    }
-}
-
 // MARK: - Data Models
 
 /// A horizontal tab within a project (Claude session or terminal).
@@ -525,10 +513,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         // Only Claude tabs need the overlay (hides stty/clear setup until CLI sets title).
         // Non-Claude terminals never emit a title OSC, so the overlay would just block for 3s.
         surfaceView.needsOverlay = isClaude
-        let overlayCreatedAt = CFAbsoluteTimeGetCurrent()
-        surfaceView.overlayCreatedAt = overlayCreatedAt
 
-        overlayLog("T0: creating surface \(surfaceView.surfaceId) (isClaude: \(isClaude))")
         surfaceView.createSurface(
             app: app,
             tabId: tab.id,
@@ -537,8 +522,6 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             envVars: envVars,
             initialInput: initialInput
         )
-        let createElapsed = CFAbsoluteTimeGetCurrent() - overlayCreatedAt
-        overlayLog("T1: ghostty_surface_new() returned for \(surfaceView.surfaceId) after \(String(format: "%.3f", createElapsed))s")
 
         project.tabs.append(tab)
     }
@@ -649,9 +632,6 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             currentOverlay = overlay
             // Safety fallback
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self, weak overlay, weak view] in
-                if let view = view, view.needsOverlay {
-                    overlayLog("safety fallback fired for \(view.surfaceId) — revealSurface was never called")
-                }
                 view?.needsOverlay = false
                 overlay?.removeFromSuperview()
                 if self?.currentOverlay === overlay { self?.currentOverlay = nil }
@@ -729,10 +709,6 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     }
 
     private func revealSurface(_ view: TerminalNSView) {
-        if view.needsOverlay, let t = view.overlayCreatedAt {
-            let elapsed = CFAbsoluteTimeGetCurrent() - t
-            overlayLog("revealSurface for \(view.surfaceId) after \(String(format: "%.3f", elapsed))s")
-        }
         view.needsOverlay = false
         guard let overlay = currentOverlay, view === currentTerminalView else { return }
         currentOverlay = nil
