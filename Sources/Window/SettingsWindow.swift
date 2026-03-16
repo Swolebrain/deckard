@@ -181,6 +181,7 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
     private var themeSearchField: NSSearchField?
     private var filteredThemes: [ThemeManager.ThemeInfo] = []
     private var allThemeEntries: [(name: String, info: ThemeManager.ThemeInfo?)] = []  // nil info = System Default
+    private var suppressThemeSelection = false
 
     private func makeAppearancePane() -> NSView {
         let pane = NSView()
@@ -239,7 +240,8 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         // Populate theme list
         rebuildThemeList(filter: "")
 
-        // Select current theme
+        // Select current theme without triggering applyTheme
+        suppressThemeSelection = true
         if let current = ThemeManager.shared.currentThemeName {
             if let idx = allThemeEntries.firstIndex(where: { $0.name == current }) {
                 tableView.selectRowIndexes(IndexSet(integer: idx), byExtendingSelection: false)
@@ -248,6 +250,7 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         } else {
             tableView.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
         }
+        suppressThemeSelection = false
 
         return pane
     }
@@ -269,13 +272,18 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         rebuildThemeList(filter: sender.stringValue)
     }
 
-    @objc private func themeRowClicked() {
+    private func applySelectedTheme() {
+        guard !suppressThemeSelection else { return }
         guard let tableView = themeTableView else { return }
         let row = tableView.selectedRow
         guard row >= 0, row < allThemeEntries.count else { return }
 
         let entry = allThemeEntries[row]
         ThemeManager.shared.applyTheme(name: entry.info?.name)
+    }
+
+    @objc private func themeRowClicked() {
+        applySelectedTheme()
     }
 
     // MARK: - Shortcuts Pane
@@ -416,6 +424,10 @@ extension SettingsWindowController: NSTableViewDataSource, NSTableViewDelegate {
         cell.stringValue = entry.name
         cell.font = entry.info == nil ? .systemFont(ofSize: 13, weight: .medium) : .systemFont(ofSize: 13)
         return cell
+    }
+
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        applySelectedTheme()
     }
 }
 

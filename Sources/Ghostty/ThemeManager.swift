@@ -58,10 +58,13 @@ class ThemeManager {
     // MARK: - Theme Application
 
     func applyTheme(name: String?) {
-        if let name = name {
-            // Write override file
-            let content = "theme = \(name)\n"
-            try? content.write(toFile: overrideConfigPath, atomically: true, encoding: .utf8)
+        if let name = name,
+           let theme = availableThemes.first(where: { $0.name == name }),
+           let themeContent = try? String(contentsOfFile: theme.path, encoding: .utf8) {
+            // Write the full theme file content as the override (raw color values).
+            // Using `theme = <name>` requires Ghostty to resolve the theme path,
+            // which may not work reliably with ghostty_config_load_file.
+            try? themeContent.write(toFile: overrideConfigPath, atomically: true, encoding: .utf8)
             UserDefaults.standard.set(name, forKey: "ghosttyThemeName")
         } else {
             // System Default — remove override
