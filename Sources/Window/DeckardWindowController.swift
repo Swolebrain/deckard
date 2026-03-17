@@ -123,6 +123,8 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     /// Recently closed projects — stored so reopening the same path restores tabs.
     private var recentlyClosedProjects: [ProjectState] = []
     private var isRestoring = false
+    /// Tabs in the order they were created (for ProcessMonitor PID matching).
+    private var tabCreationOrder: [UUID] = []
 
     init(ghosttyApp: DeckardGhosttyApp) {
         self.ghosttyApp = ghosttyApp
@@ -454,9 +456,10 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         }
 
         // Destroy all surfaces
+        let closedIds = Set(project.tabs.map { $0.id })
+        tabCreationOrder.removeAll { closedIds.contains($0) }
         for tab in project.tabs {
             tab.surfaceView.destroySurface()
-
         }
 
         projects.remove(at: index)
@@ -553,6 +556,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         )
 
         project.tabs.append(tab)
+        tabCreationOrder.append(tab.id)
     }
 
     func addTabToCurrentProject(isClaude: Bool) {
@@ -572,6 +576,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
         let tab = project.tabs[idx]
         tab.surfaceView.destroySurface()
+        tabCreationOrder.removeAll { $0 == tab.id }
 
         project.tabs.remove(at: idx)
 
@@ -729,9 +734,12 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     private func startProcessMonitor() {
         processMonitorTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
             guard let self = self else { return }
-            // Collect all tabs in creation order with isClaude flag
-            let tabInfos = self.projects.flatMap { project in
-                project.tabs.map { ProcessMonitor.TabInfo(surfaceId: $0.id, isClaude: $0.isClaude) }
+            // Collect all tabs in creation order (for PID matching) with isClaude flag
+            let allTabs = Dictionary(uniqueKeysWithValues:
+                self.projects.flatMap { $0.tabs }.map { ($0.id, $0.isClaude) })
+            let tabInfos = self.tabCreationOrder.compactMap { id -> ProcessMonitor.TabInfo? in
+                guard let isClaude = allTabs[id] else { return nil }
+                return ProcessMonitor.TabInfo(surfaceId: id, isClaude: isClaude)
             }
             DispatchQueue.global(qos: .utility).async {
                 let states = ProcessMonitor.shared.poll(tabs: tabInfos)
@@ -852,7 +860,8 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             if let ti = project.tabs.firstIndex(where: { $0.id == surfaceId }) {
                 let tab = project.tabs[ti]
                 tab.surfaceView.destroySurface()
-    
+                tabCreationOrder.removeAll { $0 == tab.id }
+
                 project.tabs.remove(at: ti)
 
                 if project.tabs.isEmpty {
@@ -1013,13 +1022,40 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
         isRestoring = true
 
-        for ps in projectStates {
+        // Restore the selected project first so its sessions start resuming immediately,
+        // then restore remaining projects in top-to-bottom sidebar order.
+        let selectedIdx = min(max(state.selectedTabIndex, 0), projectStates.count - 1)
+        var restoreOrder = [selectedIdx]
+        for i in 0..<projectStates.count where i != selectedIdx {
+            restoreOrder.append(i)
+        }
+
+        var restoredProjects = [ProjectItem?](repeating: nil, count: projectStates.count)
+        for i in restoreOrder {
+            let ps = projectStates[i]
             let project = ProjectItem(path: ps.path)
             project.name = ps.name  // restore custom name if renamed
 
-            for ts in ps.tabs {
+            // Restore the selected tab first so its session resumes immediately,
+            // then restore remaining tabs in left-to-right order.
+            let selTab = min(max(ps.selectedTabIndex, 0), max(ps.tabs.count - 1, 0))
+            var tabOrder = [selTab]
+            for t in 0..<ps.tabs.count where t != selTab {
+                tabOrder.append(t)
+            }
+            for t in tabOrder {
+                let ts = ps.tabs[t]
                 createTabInProject(project, isClaude: ts.isClaude, name: ts.name,
                                    sessionIdToResume: ts.isClaude ? ts.sessionId : nil)
+            }
+            // createTabInProject appends tabs, so reorder to match saved order
+            if tabOrder != Array(0..<ps.tabs.count) {
+                let unordered = project.tabs
+                var reordered = [TabItem?](repeating: nil, count: unordered.count)
+                for (creationIdx, originalIdx) in tabOrder.enumerated() {
+                    reordered[originalIdx] = unordered[creationIdx]
+                }
+                project.tabs = reordered.compactMap { $0 }
             }
 
             if project.tabs.isEmpty {
@@ -1031,15 +1067,15 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             }
 
             project.selectedTabIndex = min(ps.selectedTabIndex, project.tabs.count - 1)
-            projects.append(project)
+            restoredProjects[i] = project
         }
+        projects = restoredProjects.compactMap { $0 }
 
         isRestoring = false
 
         rebuildSidebar()
-        let idx = min(state.selectedTabIndex, projects.count - 1)
-        if idx >= 0 {
-            selectProject(at: idx)
+        if selectedIdx >= 0 && selectedIdx < projects.count {
+            selectProject(at: selectedIdx)
         }
         saveState()
     }
@@ -1326,6 +1362,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
         let tab = project.tabs[idx]
         tab.surfaceView.destroySurface()
+        tabCreationOrder.removeAll { $0 == tab.id }
 
         project.tabs.remove(at: idx)
 
