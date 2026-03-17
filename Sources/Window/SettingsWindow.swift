@@ -221,6 +221,22 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         pane.addSubview(searchField)
         pane.addSubview(scrollView)
 
+        // Divider between theme picker and badge colors
+        let divider = NSBox()
+        divider.boxType = .separator
+        divider.translatesAutoresizingMaskIntoConstraints = false
+        pane.addSubview(divider)
+
+        // Status indicators section
+        let badgeLabel = NSTextField(labelWithString: "Status Indicators:")
+        badgeLabel.font = .systemFont(ofSize: 13, weight: .medium)
+        badgeLabel.translatesAutoresizingMaskIntoConstraints = false
+        pane.addSubview(badgeLabel)
+
+        let badgeGrid = makeBadgeColorGrid()
+        badgeGrid.translatesAutoresizingMaskIntoConstraints = false
+        pane.addSubview(badgeGrid)
+
         NSLayoutConstraint.activate([
             label.topAnchor.constraint(equalTo: pane.topAnchor, constant: 16),
             label.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
@@ -233,8 +249,18 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
             scrollView.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 10),
             scrollView.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
             scrollView.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -20),
-            scrollView.bottomAnchor.constraint(equalTo: pane.bottomAnchor, constant: -16),
-            scrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 300),
+            scrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 200),
+
+            divider.topAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: 20),
+            divider.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
+            divider.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -20),
+
+            badgeLabel.topAnchor.constraint(equalTo: divider.bottomAnchor, constant: 16),
+            badgeLabel.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
+
+            badgeGrid.topAnchor.constraint(equalTo: badgeLabel.bottomAnchor, constant: 8),
+            badgeGrid.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
+            badgeGrid.bottomAnchor.constraint(equalTo: pane.bottomAnchor, constant: -16),
         ])
 
         // Populate theme list
@@ -284,6 +310,235 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
 
     @objc private func themeRowClicked() {
         applySelectedTheme()
+    }
+
+    // MARK: - Badge Color Grid
+
+    private static let claudeBadgeEntries: [(state: TabItem.BadgeState, label: String)] = [
+        (.idle, "Idle"),
+        (.thinking, "Thinking"),
+        (.waitingForInput, "Ready"),
+        (.needsPermission, "Needs Permission"),
+        (.error, "Error"),
+    ]
+
+    private static let terminalBadgeEntries: [(state: TabItem.BadgeState, label: String)] = [
+        (.terminalIdle, "Idle"),
+        (.terminalActive, "Busy"),
+        (.terminalError, "Error"),
+    ]
+
+    /// Default animation settings per state.
+    static let defaultBadgeAnimated: Set<TabItem.BadgeState> = [.thinking, .terminalActive]
+
+    static func isBadgeAnimated(_ state: TabItem.BadgeState) -> Bool {
+        if let saved = UserDefaults.standard.object(forKey: "badgeAnimate.\(state.rawValue)") as? Bool {
+            return saved
+        }
+        return defaultBadgeAnimated.contains(state)
+    }
+
+    private func makeBadgeColorGrid() -> NSView {
+        let borderColor = NSColor.separatorColor.cgColor
+        let rowHeight: CGFloat = 28
+        let colWidths: [CGFloat] = [70, 120, 50, 50]  // section, state, color, blink
+        let tableWidth = colWidths.reduce(0, +)
+
+        let allSections: [(title: String, entries: [(state: TabItem.BadgeState, label: String)])] = [
+            ("Claude", Self.claudeBadgeEntries),
+            ("Terminal", Self.terminalBadgeEntries),
+        ]
+
+        // Count total rows: header + all entries
+        let totalRows = 1 + allSections.reduce(0) { $0 + $1.entries.count }
+
+        let container = NSView()
+        container.wantsLayer = true
+        container.layer?.borderColor = borderColor
+        container.layer?.borderWidth = 1
+        container.layer?.cornerRadius = 4
+        container.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            container.widthAnchor.constraint(equalToConstant: tableWidth),
+            container.heightAnchor.constraint(equalToConstant: CGFloat(totalRows) * rowHeight),
+        ])
+
+        func makeCell(_ width: CGFloat, y: CGFloat) -> NSView {
+            let cell = NSView()
+            cell.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(cell)
+            NSLayoutConstraint.activate([
+                cell.widthAnchor.constraint(equalToConstant: width),
+                cell.heightAnchor.constraint(equalToConstant: rowHeight),
+            ])
+            return cell
+        }
+
+        func addHLine(y: CGFloat) {
+            let line = NSView()
+            line.wantsLayer = true
+            line.layer?.backgroundColor = borderColor
+            line.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(line)
+            NSLayoutConstraint.activate([
+                line.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                line.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                line.topAnchor.constraint(equalTo: container.topAnchor, constant: y),
+                line.heightAnchor.constraint(equalToConstant: 1),
+            ])
+        }
+
+        func addVLine(x: CGFloat, fromY: CGFloat, toY: CGFloat) {
+            let line = NSView()
+            line.wantsLayer = true
+            line.layer?.backgroundColor = borderColor
+            line.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(line)
+            NSLayoutConstraint.activate([
+                line.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: x),
+                line.widthAnchor.constraint(equalToConstant: 1),
+                line.topAnchor.constraint(equalTo: container.topAnchor, constant: fromY),
+                line.heightAnchor.constraint(equalToConstant: toY - fromY),
+            ])
+        }
+
+        func placeView(_ view: NSView, x: CGFloat, y: CGFloat, width: CGFloat) {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(view)
+            NSLayoutConstraint.activate([
+                view.centerYAnchor.constraint(equalTo: container.topAnchor, constant: y + rowHeight / 2),
+                view.centerXAnchor.constraint(equalTo: container.leadingAnchor, constant: x + width / 2),
+            ])
+        }
+
+        func placeLabel(_ text: String, x: CGFloat, y: CGFloat, width: CGFloat, bold: Bool = false, align: NSTextAlignment = .center) {
+            let label = NSTextField(labelWithString: text)
+            label.font = bold ? .systemFont(ofSize: 11, weight: .medium) : .systemFont(ofSize: 12)
+            label.textColor = bold ? .secondaryLabelColor : .labelColor
+            label.alignment = align
+            placeView(label, x: x, y: y, width: width)
+        }
+
+        // Header row
+        var x: CGFloat = 0
+        placeLabel("", x: x, y: 0, width: colWidths[0], bold: true)
+        x += colWidths[0]
+        placeLabel("State", x: x, y: 0, width: colWidths[1], bold: true)
+        x += colWidths[1]
+        placeLabel("Color", x: x, y: 0, width: colWidths[2], bold: true)
+        x += colWidths[2]
+        placeLabel("Blink", x: x, y: 0, width: colWidths[3], bold: true)
+
+        addHLine(y: rowHeight)
+
+        // Vertical lines for all columns
+        x = colWidths[0]
+        for i in 1..<colWidths.count {
+            addVLine(x: x, fromY: 0, toY: CGFloat(totalRows) * rowHeight)
+            x += colWidths[i]
+        }
+
+        // Data rows
+        var row = 1
+        for (si, section) in allSections.enumerated() {
+            for (ei, entry) in section.entries.enumerated() {
+                let y = CGFloat(row) * rowHeight
+
+                // Section label — only on first entry of each section
+                if ei == 0 {
+                    placeLabel(section.title, x: 0, y: y, width: colWidths[0], bold: true)
+                }
+
+                // State label
+                placeLabel(entry.label, x: colWidths[0], y: y, width: colWidths[1])
+
+                // Color well
+                let well = makeBadgeColorWell(for: entry.state)
+                placeView(well, x: colWidths[0] + colWidths[1], y: y, width: colWidths[2])
+
+                // Blink toggle
+                let toggle = NSButton(checkboxWithTitle: "", target: self, action: #selector(badgeAnimateChanged(_:)))
+                toggle.state = Self.isBadgeAnimated(entry.state) ? .on : .off
+                toggle.controlSize = .small
+                objc_setAssociatedObject(toggle, &settingsKeyAssoc, entry.state.rawValue, .OBJC_ASSOCIATION_RETAIN)
+                placeView(toggle, x: colWidths[0] + colWidths[1] + colWidths[2], y: y, width: colWidths[3])
+
+                addHLine(y: y + rowHeight)
+                row += 1
+            }
+
+            // Section separator (thicker line between Claude and Terminal)
+            if si < allSections.count - 1 {
+                // The horizontal line is already drawn — we could make it thicker
+                // but the regular 1px line is fine for a spreadsheet look
+            }
+        }
+
+        // Wrap in a vertical stack with the reset button
+        let wrapper = NSStackView()
+        wrapper.orientation = .vertical
+        wrapper.alignment = .trailing
+        wrapper.spacing = 8
+        wrapper.addArrangedSubview(container)
+
+        let resetButton = NSButton(title: "Reset to Defaults", target: self, action: #selector(resetBadgeColors))
+        resetButton.bezelStyle = .rounded
+        resetButton.controlSize = .small
+        wrapper.addArrangedSubview(resetButton)
+
+        return wrapper
+    }
+
+    private func makeBadgeColorWell(for state: TabItem.BadgeState) -> NSColorWell {
+        let well: NSColorWell
+        if #available(macOS 14.0, *) {
+            well = NSColorWell(style: .minimal)
+        } else {
+            well = NSColorWell()
+        }
+        well.color = VerticalTabRowView.colorForBadge(state)
+        well.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            well.widthAnchor.constraint(equalToConstant: 36),
+            well.heightAnchor.constraint(equalToConstant: 24),
+        ])
+        well.tag = state.hashValue
+        objc_setAssociatedObject(well, &settingsKeyAssoc, state.rawValue, .OBJC_ASSOCIATION_RETAIN)
+        well.target = self
+        well.action = #selector(badgeColorChanged(_:))
+        return well
+    }
+
+    @objc private func badgeColorChanged(_ sender: NSColorWell) {
+        guard let stateRaw = objc_getAssociatedObject(sender, &settingsKeyAssoc) as? String else { return }
+        UserDefaults.standard.set(sender.color.toHex(), forKey: "badgeColor.\(stateRaw)")
+        // Trigger immediate UI update
+        if let wc = NSApp.delegate as? AppDelegate {
+            wc.windowController?.rebuildSidebar()
+            wc.windowController?.rebuildTabBar()
+        }
+    }
+
+    @objc private func badgeAnimateChanged(_ sender: NSButton) {
+        guard let stateRaw = objc_getAssociatedObject(sender, &settingsKeyAssoc) as? String else { return }
+        UserDefaults.standard.set(sender.state == .on, forKey: "badgeAnimate.\(stateRaw)")
+        if let wc = NSApp.delegate as? AppDelegate {
+            wc.windowController?.rebuildSidebar()
+            wc.windowController?.rebuildTabBar()
+        }
+    }
+
+    @objc private func resetBadgeColors() {
+        for entry in Self.claudeBadgeEntries + Self.terminalBadgeEntries {
+            UserDefaults.standard.removeObject(forKey: "badgeColor.\(entry.state.rawValue)")
+            UserDefaults.standard.removeObject(forKey: "badgeAnimate.\(entry.state.rawValue)")
+        }
+        // Refresh the pane to show default colors
+        switchToPane(.appearance)
+        if let wc = NSApp.delegate as? AppDelegate {
+            wc.windowController?.rebuildSidebar()
+            wc.windowController?.rebuildTabBar()
+        }
     }
 
     // MARK: - Shortcuts Pane
