@@ -464,7 +464,10 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         if project.tabs.isEmpty {
             currentTerminalView?.isHidden = true
             currentTerminalView = nil
-        } else if project.selectedTabIndex >= 0, project.selectedTabIndex < project.tabs.count {
+            welcomeLabel?.isHidden = false
+        } else {
+            // Clamp selectedTabIndex to valid range
+            project.selectedTabIndex = max(0, min(project.selectedTabIndex, project.tabs.count - 1))
             showTab(project.tabs[project.selectedTabIndex])
         }
 
@@ -949,50 +952,31 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
         isRestoring = true
 
-        // Restore the selected project first so its sessions start resuming immediately,
-        // then restore remaining projects in top-to-bottom sidebar order.
         let selectedIdx = min(max(state.selectedTabIndex, 0), projectStates.count - 1)
-        var restoreOrder = [selectedIdx]
-        for i in 0..<projectStates.count where i != selectedIdx {
-            restoreOrder.append(i)
-        }
 
-        var restoredProjects = [ProjectItem?](repeating: nil, count: projectStates.count)
-        for i in restoreOrder {
-            let ps = projectStates[i]
+        // Phase 1: Create the active project's active tab immediately so the user
+        // sees a working terminal right away. Collect remaining tabs for Phase 2.
+        var pending: [(project: ProjectItem, tab: ProjectTabState)] = []
+
+        for (i, ps) in projectStates.enumerated() {
             let project = ProjectItem(path: ps.path)
-            project.name = ps.name  // restore custom name if renamed
+            project.name = ps.name
 
-            // Restore the selected tab first so its session resumes immediately,
-            // then restore remaining tabs in left-to-right order.
             let selTab = min(max(ps.selectedTabIndex, 0), max(ps.tabs.count - 1, 0))
-            var tabOrder = [selTab]
-            for t in 0..<ps.tabs.count where t != selTab {
-                tabOrder.append(t)
-            }
-            for t in tabOrder {
-                let ts = ps.tabs[t]
-                createTabInProject(project, isClaude: ts.isClaude, name: ts.name,
-                                   sessionIdToResume: ts.isClaude ? ts.sessionId : nil)
-            }
-            // createTabInProject appends tabs, so reorder to match saved order
-            if tabOrder != Array(0..<ps.tabs.count) {
-                let unordered = project.tabs
-                var reordered = [TabItem?](repeating: nil, count: unordered.count)
-                for (creationIdx, originalIdx) in tabOrder.enumerated() {
-                    reordered[originalIdx] = unordered[creationIdx]
-                }
-                project.tabs = reordered.compactMap { $0 }
-            }
 
-            if project.tabs.isEmpty {
-                // Empty project — keep it as-is (sticky/pinned)
+            for (t, ts) in ps.tabs.enumerated() {
+                if i == selectedIdx && t == selTab {
+                    // Create the active tab's surface synchronously
+                    createTabInProject(project, isClaude: ts.isClaude, name: ts.name,
+                                       sessionIdToResume: ts.isClaude ? ts.sessionId : nil)
+                } else {
+                    pending.append((project: project, tab: ts))
+                }
             }
 
             project.selectedTabIndex = min(ps.selectedTabIndex, project.tabs.count - 1)
-            restoredProjects[i] = project
+            projects.append(project)
         }
-        projects = restoredProjects.compactMap { $0 }
 
         isRestoring = false
 
@@ -1000,7 +984,28 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         if selectedIdx >= 0 && selectedIdx < projects.count {
             selectProject(at: selectedIdx)
         }
-        saveState()
+
+        // Phase 2: Create remaining surfaces progressively, one per run loop cycle.
+        // Each ghostty_surface_new() takes 3-11ms so the app stays responsive.
+        createTabsProgressively(pending)
+    }
+
+    private func createTabsProgressively(_ remaining: [(project: ProjectItem, tab: ProjectTabState)]) {
+        guard let first = remaining.first else {
+            // All tabs created — rebuild UI to reflect the full state
+            rebuildSidebar()
+            rebuildTabBar()
+            saveState()
+            return
+        }
+
+        let ts = first.tab
+        createTabInProject(first.project, isClaude: ts.isClaude, name: ts.name,
+                           sessionIdToResume: ts.isClaude ? ts.sessionId : nil)
+
+        DispatchQueue.main.async { [self] in
+            createTabsProgressively(Array(remaining.dropFirst()))
+        }
     }
 
     // MARK: - Sidebar (project list)
