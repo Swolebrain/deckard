@@ -246,7 +246,13 @@ class TerminalNSView: NSView {
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
         if result {
-            surface.map { ghostty_surface_set_focus($0, true) }
+            // Dispatch to background queue to avoid deadlocking the main thread
+            // with libghostty's renderer/IO lock (same pattern as destroySurface).
+            if let s = surface {
+                DispatchQueue.global(qos: .userInteractive).async {
+                    ghostty_surface_set_focus(s, true)
+                }
+            }
             focusGainedTime = ProcessInfo.processInfo.systemUptime
             keyDownCount = 0
         }
@@ -258,7 +264,13 @@ class TerminalNSView: NSView {
     override func resignFirstResponder() -> Bool {
         let result = super.resignFirstResponder()
         if result {
-            surface.map { ghostty_surface_set_focus($0, false) }
+            // Dispatch to background queue to avoid deadlocking the main thread
+            // with libghostty's renderer/IO lock (same pattern as destroySurface).
+            if let s = surface {
+                DispatchQueue.global(qos: .userInteractive).async {
+                    ghostty_surface_set_focus(s, false)
+                }
+            }
         }
         let fr = window?.firstResponder
         DiagnosticLog.shared.log("focus",
