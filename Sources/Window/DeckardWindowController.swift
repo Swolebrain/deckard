@@ -20,6 +20,7 @@ class TabItem {
     var name: String
     var isClaude: Bool
     var sessionId: String?
+    var sessionStarted: Bool = false
     var badgeState: BadgeState = .none
 
     enum BadgeState: String {
@@ -107,11 +108,14 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     private let tabBar = ReorderableHStackView()  // horizontal tab bar
     private var isRebuildingTabBar = false
     private var needsTabBarRebuild = false
+    /// Saved first responder before a rebuild, used to detect and restore focus theft.
+    private weak var savedFirstResponder: NSResponder?
     private let terminalContainerView = NSView()
     private let contextProgressBar = NSView()
     private var contextProgressFill = NSView()
     private var contextTimer: Timer?
     private var processMonitorTimer: Timer?
+    private var focusHealthTimer: Timer?
     private var currentTerminalView: TerminalNSView?
     private var welcomeLabel: NSTextField?
 
@@ -189,6 +193,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         }
 
         startProcessMonitor()
+        startFocusHealthCheck()
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -196,6 +201,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     deinit {
         SessionManager.shared.stopAutosave()
         processMonitorTimer?.invalidate()
+        focusHealthTimer?.invalidate()
     }
 
     // MARK: - UI Setup
@@ -519,6 +525,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         }
         let tab = TabItem(surfaceView: surfaceView, name: tabName, isClaude: isClaude)
         tab.badgeState = isClaude ? .idle : .terminalIdle
+        tab.sessionStarted = !isClaude  // Terminal tabs are immediately visible
 
         var envVars: [String: String] = [:]
         if isClaude {
@@ -558,6 +565,20 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             envVars: envVars,
             initialInput: initialInput
         )
+
+        // Safety timeout: reveal Claude tab if session-start hook never fires
+        if isClaude {
+            let tabId = tab.id
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+                guard let self else { return }
+                for project in self.projects {
+                    if let t = project.tabs.first(where: { $0.id == tabId }), !t.sessionStarted {
+                        t.sessionStarted = true
+                        if t.surfaceView.superview != nil { t.surfaceView.isHidden = false }
+                    }
+                }
+            }
+        }
 
         project.tabs.append(tab)
         tabCreationOrder.append(tab.id)
@@ -645,7 +666,8 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
                 view.trailingAnchor.constraint(equalTo: terminalContainerView.trailingAnchor),
             ])
         }
-        view.isHidden = false
+        // Keep Claude tabs hidden until session-start hook fires
+        view.isHidden = tab.isClaude && !tab.sessionStarted
         currentTerminalView = view
 
         let ok = window?.makeFirstResponder(view) ?? false
@@ -714,6 +736,21 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
     // MARK: - Process Monitor
 
+    private func startFocusHealthCheck() {
+        focusHealthTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            guard let self = self,
+                  let view = self.currentTerminalView,
+                  view.surface != nil,
+                  !view.isHidden,
+                  self.window?.isKeyWindow == true else { return }
+            if self.window?.firstResponder !== view {
+                DiagnosticLog.shared.log("health",
+                    "MISMATCH: expected=\(view.surfaceId) actual=\(type(of: self.window?.firstResponder))")
+                self.window?.makeFirstResponder(view)
+            }
+        }
+    }
+
     private func startProcessMonitor() {
         processMonitorTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
             guard let self = self else { return }
@@ -750,6 +787,8 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             }
         }
         if changed {
+            DiagnosticLog.shared.log("processmon",
+                "badge changes detected, triggering rebuild. currentFR=\(type(of: window?.firstResponder))")
             rebuildSidebar()
             rebuildTabBar()
         }
@@ -851,6 +890,18 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         return nil
     }
 
+    func revealClaudeTab(surfaceId: String) {
+        guard let tab = tabForSurfaceId(surfaceId) else { return }
+        tab.sessionStarted = true
+        // Only unhide if this tab is currently selected
+        if let project = currentProject {
+            let idx = project.selectedTabIndex
+            if idx >= 0, idx < project.tabs.count, project.tabs[idx].id == tab.id {
+                tab.surfaceView.isHidden = false
+            }
+        }
+    }
+
     func isTabFocused(_ surfaceIdStr: String) -> Bool {
         guard let surfaceId = UUID(uuidString: surfaceIdStr) else { return false }
         guard let project = currentProject else { return false }
@@ -892,6 +943,8 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
     func updateBadge(forSurfaceId surfaceIdStr: String, state: TabItem.BadgeState) {
         guard let tab = tabForSurfaceId(surfaceIdStr) else { return }
+        DiagnosticLog.shared.log("badge",
+            "updateBadge: surfaceId=\(surfaceIdStr) state=\(state) currentFR=\(type(of: window?.firstResponder))")
         tab.badgeState = state
         rebuildSidebar()
         rebuildTabBar()
@@ -1052,6 +1105,15 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     // MARK: - Sidebar (project list)
 
     func rebuildSidebar() {
+        let savedFR = window?.firstResponder
+        defer {
+            if let terminal = savedFR as? TerminalNSView,
+               window?.firstResponder !== terminal {
+                DiagnosticLog.shared.log("sidebar",
+                    "rebuildSidebar: focus stolen! restoring surfaceId=\(terminal.surfaceId)")
+                window?.makeFirstResponder(terminal)
+            }
+        }
         sidebarStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
         for (i, project) in projects.enumerated() {
@@ -1241,7 +1303,18 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             return
         }
         isRebuildingTabBar = true
-        defer { isRebuildingTabBar = false }
+        defer {
+            isRebuildingTabBar = false
+            // Restore focus if the rebuild stole it from the terminal
+            if let terminal = savedFirstResponder as? TerminalNSView,
+               window?.firstResponder !== terminal {
+                DiagnosticLog.shared.log("tabbar",
+                    "rebuildTabBar: focus stolen! restoring surfaceId=\(terminal.surfaceId)")
+                window?.makeFirstResponder(terminal)
+            }
+            savedFirstResponder = nil
+        }
+        savedFirstResponder = window?.firstResponder
 
         tabBar.arrangedSubviews.forEach { $0.removeFromSuperview() }
         guard let project = currentProject else { return }
