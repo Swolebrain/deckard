@@ -120,6 +120,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     private var welcomeLabel: NSTextField?
 
     private let sidebarDropZone = SidebarDropZone()
+    private let openFolderButton = NSButton()
     private let sidebarWidth: CGFloat = 210
     private var sidebarInitialized = false
     private var sidebarWidthBeforeCollapse: CGFloat = 210
@@ -238,26 +239,27 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         sidebarStackView.translatesAutoresizingMaskIntoConstraints = false
         sidebarView.addSubview(sidebarStackView)
 
-        // Open folder button in title bar (right side)
-        let openButton = NSButton(image: NSImage(systemSymbolName: "folder.badge.plus", accessibilityDescription: "Open Folder")!, target: self, action: #selector(openProjectClicked))
-        openButton.bezelStyle = .recessed
-        openButton.isBordered = false
-        openButton.contentTintColor = currentThemeColors.secondaryText
-        openButton.toolTip = shortcutTooltip("Open Folder", for: .openFolder)
-        openButton.translatesAutoresizingMaskIntoConstraints = false
-
-        let accessoryVC = NSTitlebarAccessoryViewController()
-        accessoryVC.layoutAttribute = .right
-        accessoryVC.view = openButton
-        window?.addTitlebarAccessoryViewController(accessoryVC)
+        // Open folder button at bottom of sidebar
+        openFolderButton.image = NSImage(systemSymbolName: "folder.badge.plus", accessibilityDescription: "Open Folder")
+        openFolderButton.target = self
+        openFolderButton.action = #selector(openProjectClicked)
+        openFolderButton.bezelStyle = .recessed
+        openFolderButton.isBordered = false
+        openFolderButton.contentTintColor = currentThemeColors.secondaryText
+        openFolderButton.toolTip = shortcutTooltip("Open Folder", for: .openFolder)
+        openFolderButton.translatesAutoresizingMaskIntoConstraints = false
+        sidebarView.addSubview(openFolderButton)
 
         NSLayoutConstraint.activate([
             sidebarStackView.topAnchor.constraint(equalTo: sidebarView.topAnchor),
             sidebarStackView.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
             sidebarStackView.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
 
+            openFolderButton.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor, constant: 8),
+            openFolderButton.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor, constant: -8),
+
             sidebarDropZone.topAnchor.constraint(equalTo: sidebarStackView.bottomAnchor),
-            sidebarDropZone.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor),
+            sidebarDropZone.bottomAnchor.constraint(equalTo: openFolderButton.topAnchor, constant: -4),
             sidebarDropZone.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
             sidebarDropZone.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
         ])
@@ -824,6 +826,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             ? NSAppearance(named: .darkAqua) : NSAppearance(named: .aqua)
         sidebarView.layer?.backgroundColor = colors.sidebarBackground.cgColor
         tabBar.layer?.backgroundColor = colors.tabBarBackground.cgColor
+        openFolderButton.contentTintColor = colors.secondaryText
         rebuildSidebar()
         rebuildTabBar()
     }
