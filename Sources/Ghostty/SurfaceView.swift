@@ -36,6 +36,8 @@ class TerminalNSView: NSView {
 
     var title: String = ""
     var pwd: String?
+    /// Last time a keyDown was logged (for throttling diagnostic output).
+    private var lastKeyDownLogTime: TimeInterval = 0
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -240,6 +242,7 @@ class TerminalNSView: NSView {
         if result {
             surface.map { ghostty_surface_set_focus($0, true) }
         }
+        DiagnosticLog.shared.log("focus", "becomeFirstResponder: \(result) surfaceId=\(surfaceId)")
         return result
     }
 
@@ -248,6 +251,7 @@ class TerminalNSView: NSView {
         if result {
             surface.map { ghostty_surface_set_focus($0, false) }
         }
+        DiagnosticLog.shared.log("focus", "resignFirstResponder: \(result) surfaceId=\(surfaceId)")
         return result
     }
 
@@ -370,8 +374,16 @@ class TerminalNSView: NSView {
 
     override func keyDown(with event: NSEvent) {
         guard let surface = self.surface else {
+            DiagnosticLog.shared.log("input", "keyDown: surface=nil surfaceId=\(surfaceId)")
             interpretKeyEvents([event])
             return
+        }
+
+        let now = ProcessInfo.processInfo.systemUptime
+        let gap = now - lastKeyDownLogTime
+        if gap > 5 {
+            DiagnosticLog.shared.log("input", "keyDown: resumed after \(String(format: "%.1f", gap))s idle, keyCode=\(event.keyCode) surfaceId=\(surfaceId)")
+            lastKeyDownLogTime = now
         }
 
         // Translate mods to handle configs like option-as-alt.
@@ -604,15 +616,24 @@ class TerminalNSView: NSView {
         var keyEv = Self.ghosttyKeyEvent(event, action, translationMods: translationMods)
         keyEv.composing = composing
 
+        let start = ProcessInfo.processInfo.systemUptime
+        let result: Bool
         if let text, !text.isEmpty,
            let codepoint = text.utf8.first, codepoint >= 0x20 {
-            return text.withCString { ptr in
+            result = text.withCString { ptr in
                 keyEv.text = ptr
                 return ghostty_surface_key(surface, keyEv)
             }
         } else {
-            return ghostty_surface_key(surface, keyEv)
+            result = ghostty_surface_key(surface, keyEv)
         }
+
+        let elapsed = ProcessInfo.processInfo.systemUptime - start
+        if elapsed > 0.1 || !result {
+            DiagnosticLog.shared.log("input",
+                "keyAction: keyCode=\(event.keyCode) result=\(result) elapsed=\(String(format: "%.3f", elapsed))s surfaceId=\(surfaceId)")
+        }
+        return result
     }
 
     /// Build a ghostty_input_key_s from an NSEvent.

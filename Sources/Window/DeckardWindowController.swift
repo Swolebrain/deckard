@@ -157,6 +157,24 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(themeDidChange(_:)),
                                                name: .deckardThemeChanged, object: nil)
 
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            // Re-assert first responder after system wake to recover from potential focus loss
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                guard let wc = self as? DeckardWindowController,
+                      let project = wc.currentProject else { return }
+                let idx = project.selectedTabIndex
+                guard idx >= 0, idx < project.tabs.count else { return }
+                let tab = project.tabs[idx]
+                let fr = wc.window?.firstResponder
+                DiagnosticLog.shared.log("sleep",
+                    "wake recovery: firstResponder=\(type(of: fr)) surfaceId=\(tab.id)")
+                wc.window?.makeFirstResponder(tab.surfaceView)
+            }
+        }
+
         restoreOrCreateInitial()
 
         // If no projects after restore, auto-show the project picker
@@ -629,7 +647,9 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         view.isHidden = false
         currentTerminalView = view
 
-        window?.makeFirstResponder(view)
+        let ok = window?.makeFirstResponder(view) ?? false
+        DiagnosticLog.shared.log("focus",
+            "showTab: makeFirstResponder=\(ok) surfaceId=\(view.surfaceId)")
         refreshContextBar(for: tab)
     }
 

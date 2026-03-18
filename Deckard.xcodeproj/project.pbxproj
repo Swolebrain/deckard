@@ -28,6 +28,7 @@
 		CC110001CC110001CC110001 /* ThemeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC110002CC110002CC110002 /* ThemeColors.swift */; };
 		CC110003CC110003CC110003 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC110004CC110004CC110004 /* ThemeManager.swift */; };
 		DD220001DD220001DD220001 /* ProcessMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD220002DD220002DD220002 /* ProcessMonitor.swift */; };
+		DD330001DD330001DD330001 /* DiagnosticLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD330002DD330002DD330002 /* DiagnosticLog.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,6 +54,7 @@
 		CC110002CC110002CC110002 /* ThemeColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeColors.swift; sourceTree = "<group>"; };
 		CC110004CC110004CC110004 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		DD220002DD220002DD220002 /* ProcessMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessMonitor.swift; sourceTree = "<group>"; };
+		DD330002DD330002DD330002 /* DiagnosticLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticLog.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				E5FD7F070DDB4216278EFDE6 /* ContextMonitor.swift */,
+				DD330002DD330002DD330002 /* DiagnosticLog.swift */,
 				4A2B375A023FEBCB272DCFD7 /* HookHandler.swift */,
 				A5EB9FA577948DC32DED47B7 /* NotificationManager.swift */,
 				DD220002DD220002DD220002 /* ProcessMonitor.swift */,
@@ -274,6 +277,7 @@
 				CC110001CC110001CC110001 /* ThemeColors.swift in Sources */,
 				CC110003CC110003CC110003 /* ThemeManager.swift in Sources */,
 				DD220001DD220001DD220001 /* ProcessMonitor.swift in Sources */,
+				DD330001DD330001DD330001 /* DiagnosticLog.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

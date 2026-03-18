@@ -172,6 +172,7 @@ class DeckardGhosttyApp {
             object: nil, queue: .main
         ) { [weak self] _ in
             guard let app = self?.app else { return }
+            DiagnosticLog.shared.log("focus", "app didBecomeActive")
             ghostty_app_set_focus(app, true)
         }
 
@@ -180,7 +181,30 @@ class DeckardGhosttyApp {
             object: nil, queue: .main
         ) { [weak self] _ in
             guard let app = self?.app else { return }
+            DiagnosticLog.shared.log("focus", "app didResignActive")
             ghostty_app_set_focus(app, false)
+        }
+
+        // Sleep/wake observers for diagnostics
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification,
+            object: nil, queue: .main
+        ) { _ in
+            DiagnosticLog.shared.log("sleep", "system willSleep")
+        }
+
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil, queue: .main
+        ) { _ in
+            DiagnosticLog.shared.log("sleep", "system didWake")
+        }
+
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.screensDidWakeNotification,
+            object: nil, queue: .main
+        ) { _ in
+            DiagnosticLog.shared.log("sleep", "screens didWake")
         }
     }
 
