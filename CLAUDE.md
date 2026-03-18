@@ -39,3 +39,15 @@ gh release create vX.Y.Z --repo gi11es/deckard --title "vX.Y.Z" --latest --notes
 ```
 
 Use `git log vPREVIOUS..HEAD --oneline` to summarize changes for release notes.
+
+## Commit Messages
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) prefixes:
+
+- `fix:` — bug fix
+- `feat:` — new feature
+- `refactor:` — code change that neither fixes a bug nor adds a feature
+- `chore:` — build, CI, dependencies, tooling
+- `docs:` — documentation only
+
+Example: `fix: use length-bounded reads for terminal URL actions (#6)`
