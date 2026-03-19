@@ -193,7 +193,12 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             self?.captureState() ?? DeckardState()
         }
 
-        startProcessMonitor()
+        // Delay process monitor start to let surfaces finish initializing.
+        // IOSurfaceCreate can re-enter the runloop, and polling during that
+        // window can access partially-initialized state.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            self?.startProcessMonitor()
+        }
         startFocusHealthCheck()
     }
 
@@ -535,39 +540,46 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             envVars["DECKARD_SESSION_TYPE"] = "claude"
         }
 
-        let initialInput: String?
-        // Both Claude and terminal tabs register their shell PID with Deckard
-        // via the control socket so ProcessMonitor can match login PIDs to surfaces.
-        let registerPid = "printf '{\"command\":\"register-pid\",\"surfaceId\":\"%s\",\"pid\":%d}\\n' \"$DECKARD_SURFACE_ID\" $$ | nc -U \"$DECKARD_SOCKET_PATH\" -w 1 2>/dev/null; "
+        // Register the shell PID with Deckard via the control socket so
+        // ProcessMonitor can match login PIDs to surfaces. The register-pid
+        // script registers $$, then execs the trailing command (PID preserved).
+        // No /bin/sh -c wrapper needed — avoids shell quoting issues.
+        let socketPath = ControlSocket.shared.path
+        let sid = surfaceView.surfaceId.uuidString
+        let binPath = Bundle.main.resourceURL?.appendingPathComponent("bin").path ?? ""
 
+        let command: String
+        let initialInput: String?
         if isClaude {
-            // unset HISTFILE so the shell can't persist this line to history when claude exits.
-            let prefix = "unset HISTFILE; stty -echo; \(registerPid)export PATH=\"$DECKARD_BIN_DIR:$PATH\"; clear; stty echo; "
             let extraArgs = UserDefaults.standard.string(forKey: "claudeExtraArgs") ?? ""
             let extraArgsSuffix = extraArgs.isEmpty ? "" : " \(extraArgs)"
-            if let sid = sessionIdToResume {
-                // Verify the session JSONL file still exists before attempting resume.
-                // The session ID may be orphaned if Claude exited before writing the file.
+            var claudeArgs = extraArgsSuffix
+            if let sessionIdToResume {
                 let encoded = project.path.replacingOccurrences(of: "/", with: "-")
-                let jsonlPath = NSHomeDirectory() + "/.claude/projects/\(encoded)/\(sid).jsonl"
+                let jsonlPath = NSHomeDirectory() + "/.claude/projects/\(encoded)/\(sessionIdToResume).jsonl"
                 if FileManager.default.fileExists(atPath: jsonlPath) {
-                    initialInput = "\(prefix)claude --resume \(sid)\(extraArgsSuffix)\n"
+                    claudeArgs = " --resume \(sessionIdToResume)\(extraArgsSuffix)"
                 } else {
                     tab.sessionId = nil
-                    initialInput = "\(prefix)claude\(extraArgsSuffix)\n"
                 }
-            } else {
-                initialInput = "\(prefix)claude\(extraArgsSuffix)\n"
             }
+            // --login: exec via login shell so user's PATH includes claude
+            command = "\(binPath)/register-pid \(sid) \(socketPath) --login \(binPath)/claude\(claudeArgs)"
+            initialInput = nil
         } else {
-            initialInput = " \(registerPid)true\n"
+            // Register PID, then exec the user's login shell.
+            let userShell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+            command = "\(binPath)/register-pid \(sid) \(socketPath) \(userShell) -l"
+            initialInput = nil
         }
+
+        DiagnosticLog.shared.log("surface", "createTab: \(isClaude ? "claude" : "terminal") command=\(command)")
 
         surfaceView.createSurface(
             app: app,
             tabId: tab.id,
             workingDirectory: project.path,
-            command: nil,
+            command: command,
             envVars: envVars,
             initialInput: initialInput
         )
@@ -758,7 +770,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     }
 
     private func startProcessMonitor() {
-        processMonitorTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
+        processMonitorTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             // Build tab infos — order doesn't matter since PID matching
             // is done via control socket registration, not sorted order.
@@ -798,13 +810,13 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
                 let confirmedActive = newStreak >= 2
 
                 let newBadge: TabItem.BadgeState = confirmedActive ? .terminalActive : .terminalIdle
-                if tab.badgeState != newBadge || terminalActivity[tab.id] != activity {
-                    if newBadge == .terminalActive && tab.badgeState != .terminalActive {
+                terminalActivity[tab.id] = activity
+                if tab.badgeState != newBadge {
+                    if newBadge == .terminalActive {
                         DiagnosticLog.shared.log("processmon",
                             "badge → terminalActive: project=\(project.path) tab=\"\(tab.name)\"")
                     }
                     tab.badgeState = newBadge
-                    terminalActivity[tab.id] = activity
                     changed = true
                 }
             }

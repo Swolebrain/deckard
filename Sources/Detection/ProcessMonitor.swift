@@ -48,10 +48,10 @@ class ProcessMonitor {
     private var lastDiskBytes: [pid_t: UInt64] = [:]
 
     /// Minimum CPU delta (nanoseconds) to count as activity.
-    /// 2μs filters measurement noise while catching lightweight programs
-    /// like ping (~5-6μs/2.5s). False positives from scheduler artifacts
+    /// 800ns filters measurement noise while catching lightweight programs
+    /// like ping (~2μs/1s). False positives from scheduler artifacts
     /// are handled by the consecutive-poll requirement in the window controller.
-    private let cpuThreshold: UInt64 = 2_000
+    private let cpuThreshold: UInt64 = 800
 
     // MARK: - Public API
 
