@@ -219,7 +219,9 @@ class TerminalNSView: NSView {
         CATransaction.setDisableActions(true)
         layer?.contentsScale = scale
         CATransaction.commit()
-        ghostty_surface_set_content_scale(surface, scale, scale)
+        surfaceQueue.async {
+            ghostty_surface_set_content_scale(surface, scale, scale)
+        }
         updateSurfaceSize()
     }
 
@@ -240,7 +242,9 @@ class TerminalNSView: NSView {
         layer?.contentsScale = scale
         CATransaction.commit()
 
-        ghostty_surface_set_content_scale(surface, scale, scale)
+        surfaceQueue.async {
+            ghostty_surface_set_content_scale(surface, scale, scale)
+        }
         updateSurfaceSize()
     }
 
@@ -248,7 +252,9 @@ class TerminalNSView: NSView {
         guard let surface = self.surface else { return }
         let scaledSize = convertToBacking(bounds.size)
         guard scaledSize.width > 0 && scaledSize.height > 0 else { return }
-        ghostty_surface_set_size(surface, UInt32(scaledSize.width), UInt32(scaledSize.height))
+        surfaceQueue.async {
+            ghostty_surface_set_size(surface, UInt32(scaledSize.width), UInt32(scaledSize.height))
+        }
     }
 
     // MARK: - Focus

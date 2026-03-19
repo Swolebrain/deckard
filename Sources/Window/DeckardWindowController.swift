@@ -604,14 +604,32 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         tabCreationOrder.append(tab.id)
     }
 
+    /// Guards against overlapping ghostty_surface_new() calls.
+    /// IOSurfaceCreate can re-enter the runloop, and posix_spawn for login(1)
+    /// fails with AccessDenied under concurrent creation. Session restore
+    /// avoids this by creating one tab per runloop cycle; we do the same here.
+    private var isCreatingTab = false
+
     func addTabToCurrentProject(isClaude: Bool) {
-        guard selectedProjectIndex >= 0, selectedProjectIndex < projects.count else { return }
+        guard !isCreatingTab else { return }
+        isCreatingTab = true
+
+        guard selectedProjectIndex >= 0, selectedProjectIndex < projects.count else {
+            isCreatingTab = false
+            return
+        }
         let project = projects[selectedProjectIndex]
         createTabInProject(project, isClaude: isClaude)
         project.selectedTabIndex = project.tabs.count - 1
         rebuildTabBar()
         showTab(project.tabs[project.selectedTabIndex])
         saveState()
+
+        // Re-enable on the next runloop cycle, matching createTabsProgressively's
+        // serialization pattern that avoids the AccessDenied race.
+        DispatchQueue.main.async { [weak self] in
+            self?.isCreatingTab = false
+        }
     }
 
     func closeCurrentTab() {
