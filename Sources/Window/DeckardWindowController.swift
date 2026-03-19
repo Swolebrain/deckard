@@ -1406,6 +1406,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         }
 
         rebuildTabBar()
+        rebuildSidebar()
         saveState()
     }
 
