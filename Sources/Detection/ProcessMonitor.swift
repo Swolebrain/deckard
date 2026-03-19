@@ -3,9 +3,8 @@ import Darwin
 
 /// Monitors terminal tab shell processes to detect CPU, disk, and network activity.
 ///
-/// The window controller provides all tab info (surface IDs + isClaude flags).
-/// We match login PIDs to tabs by sorted PID order ↔ sorted tab creation order,
-/// skipping Claude tabs in both lists.
+/// Claude tabs are matched to their login PIDs by finding the `deckard-hook-<SURFACE_ID>.sh`
+/// reference in the claude process command line. Terminal tabs are matched by elimination.
 ///
 /// All mutable state is accessed exclusively on `queue` (a serial dispatch queue).
 class ProcessMonitor {
@@ -16,6 +15,8 @@ class ProcessMonitor {
     struct TabInfo {
         let surfaceId: UUID
         let isClaude: Bool
+        let name: String
+        let projectPath: String
     }
 
     struct ActivityInfo: Equatable {
@@ -29,6 +30,16 @@ class ProcessMonitor {
         }
     }
 
+    /// Whether we've logged the initial PID-to-tab mapping.
+    private var hasLoggedMapping = false
+
+    /// Cached surface ID → (login PID, shell PID) mapping from socket registration.
+    private var cachedPids: [UUID: (login: pid_t, shell: pid_t)] = [:]
+
+    /// Shell PIDs registered via the control socket (surface UUID string → shell PID).
+    /// Shell PID's parent is the login PID.
+    private var registeredShellPids: [String: pid_t] = [:]
+
     /// Last known foreground PID per login (keyed by login PID).
     private var lastFgPids: [pid_t: pid_t] = [:]
     /// CPU time from the previous poll cycle (keyed by login PID).
@@ -37,15 +48,24 @@ class ProcessMonitor {
     private var lastDiskBytes: [pid_t: UInt64] = [:]
 
     /// Minimum CPU delta (nanoseconds) to count as activity.
-    /// Filters out measurement noise while catching lightweight programs like ping.
-    private let cpuThreshold: UInt64 = 1_000
+    /// 2μs filters measurement noise while catching lightweight programs
+    /// like ping (~5-6μs/2.5s). False positives from scheduler artifacts
+    /// are handled by the consecutive-poll requirement in the window controller.
+    private let cpuThreshold: UInt64 = 2_000
 
     // MARK: - Public API
 
     /// Poll all tabs. Returns surface UUID → activity info for each terminal tab.
-    /// `tabs` must be in creation order (matching PID creation order).
     func poll(tabs: [TabInfo]) -> [UUID: ActivityInfo] {
         queue.sync { _poll(tabs: tabs) }
+    }
+
+    /// Register a shell PID for a surface (called from the control socket handler).
+    /// The shell PID's parent is the login PID used for activity detection.
+    func registerShellPid(_ shellPid: pid_t, forSurface surfaceIdStr: String) {
+        queue.async { [self] in
+            registeredShellPids[surfaceIdStr] = shellPid
+        }
     }
 
     // MARK: - Core Poll (called on queue)
@@ -54,41 +74,44 @@ class ProcessMonitor {
         let terminalTabs = tabs.filter { !$0.isClaude }
         guard !terminalTabs.isEmpty else { return [:] }
 
-        let allProcs = allProcesses() ?? []
-        let myPid = getpid()
-
-        // Find all login children of Deckard, sorted by PID (creation order)
-        let loginPids = allProcs
-            .filter { $0.kp_eproc.e_ppid == myPid }
-            .map { $0.kp_proc.p_pid }
-            .sorted()
-
-        // Build parallel arrays: for each login, determine if it's Claude
-        // by checking tab order. Tabs and logins are both in creation order,
-        // so the Nth login corresponds to the Nth tab.
-        var terminalLoginPids: [pid_t] = []
-        var tabIdx = 0
-        for loginPid in loginPids {
-            guard tabIdx < tabs.count else { break }
-            let tab = tabs[tabIdx]
-            tabIdx += 1
-            if !tab.isClaude {
-                terminalLoginPids.append(loginPid)
+        // Resolve registered shell PIDs → (login, shell) pairs for uncached tabs.
+        // Uses a single getKInfoProc per new tab instead of scanning all processes.
+        for tab in tabs {
+            if cachedPids[tab.surfaceId] != nil { continue }
+            if let shellPid = registeredShellPids[tab.surfaceId.uuidString],
+               let info = getKInfoProc(pid: shellPid) {
+                cachedPids[tab.surfaceId] = (login: info.kp_eproc.e_ppid, shell: shellPid)
             }
         }
 
+        // Remove cache entries for tabs that no longer exist
+        let activeSurfaces = Set(tabs.map { $0.surfaceId })
+        cachedPids = cachedPids.filter { activeSurfaces.contains($0.key) }
+
+        // Log the mapping once all tabs are resolved
+        if !hasLoggedMapping && cachedPids.count == tabs.count {
+            hasLoggedMapping = true
+            let lines = tabs.map { tab -> String in
+                let prefix = tab.isClaude ? "C" : "T"
+                let pid = cachedPids[tab.surfaceId].map { "login=\($0.login) shell=\($0.shell)" } ?? "?"
+                return "  \(prefix):\(tab.name)@\(tab.projectPath) → \(pid)"
+            }
+            DiagnosticLog.shared.log("processmon",
+                "PID mapping (\(cachedPids.count)/\(tabs.count) matched):\n" +
+                lines.joined(separator: "\n"))
+        }
+
         var results: [UUID: ActivityInfo] = [:]
-        for (i, tab) in terminalTabs.enumerated() {
-            if i < terminalLoginPids.count {
-                results[tab.surfaceId] = checkActivity(
-                    loginPid: terminalLoginPids[i], allProcs: allProcs)
+        for tab in terminalTabs {
+            if let pids = cachedPids[tab.surfaceId] {
+                results[tab.surfaceId] = checkActivity(pids: pids, tab: tab)
             } else {
                 results[tab.surfaceId] = ActivityInfo()
             }
         }
 
         // Clean up stale tracking data
-        let activeLogins = Set(terminalLoginPids)
+        let activeLogins = Set(terminalTabs.compactMap { cachedPids[$0.surfaceId]?.login })
         lastFgPids = lastFgPids.filter { activeLogins.contains($0.key) }
         lastCpuTimes = lastCpuTimes.filter { activeLogins.contains($0.key) }
         lastDiskBytes = lastDiskBytes.filter { activeLogins.contains($0.key) }
@@ -98,13 +121,9 @@ class ProcessMonitor {
 
     // MARK: - Activity Detection
 
-    private func checkActivity(loginPid: pid_t, allProcs: [kinfo_proc]) -> ActivityInfo {
-        // Find the actual shell (login's child)
-        let shellPid = allProcs
-            .first(where: { $0.kp_eproc.e_ppid == loginPid })
-            .map { $0.kp_proc.p_pid } ?? loginPid
-
-        guard let info = getKInfoProc(pid: shellPid) else { return ActivityInfo() }
+    private func checkActivity(pids: (login: pid_t, shell: pid_t), tab: TabInfo) -> ActivityInfo {
+        let loginPid = pids.login
+        guard let info = getKInfoProc(pid: pids.shell) else { return ActivityInfo() }
 
         let shellPgid = info.kp_eproc.e_pgid
         let termFgPgid = info.kp_eproc.e_tpgid
@@ -135,7 +154,11 @@ class ProcessMonitor {
             lastFgPids[loginPid] = fgPid
             lastCpuTimes[loginPid] = cpuTime
             lastDiskBytes[loginPid] = diskBytes
-            return ActivityInfo(cpu: true)
+            let result = ActivityInfo(cpu: true)
+            DiagnosticLog.shared.log("processmon",
+                "ACTIVE: project=\(tab.projectPath) tab=\"\(tab.name)\" " +
+                "login=\(loginPid) fg=\(fgPid) reason=fg_changed")
+            return result
         }
 
         let prevCpu = lastCpuTimes[loginPid] ?? cpuTime
@@ -143,10 +166,22 @@ class ProcessMonitor {
         lastCpuTimes[loginPid] = cpuTime
         lastDiskBytes[loginPid] = diskBytes
 
-        return ActivityInfo(
-            cpu: cpuTime &- prevCpu > cpuThreshold,
-            disk: diskBytes > prevDisk
-        )
+        let cpuDelta = cpuTime &- prevCpu
+        let diskDelta = diskBytes > prevDisk ? diskBytes - prevDisk : 0
+        let cpuActive = cpuDelta > cpuThreshold
+        let diskActive = diskDelta > 0
+        let result = ActivityInfo(cpu: cpuActive, disk: diskActive)
+
+        if result.isActive {
+            var reasons: [String] = []
+            if cpuActive { reasons.append("cpu=\(cpuDelta)ns") }
+            if diskActive { reasons.append("disk=+\(diskDelta)B") }
+            DiagnosticLog.shared.log("processmon",
+                "ACTIVE: project=\(tab.projectPath) tab=\"\(tab.name)\" " +
+                "login=\(loginPid) fg=\(fgPid) \(reasons.joined(separator: " "))")
+        }
+
+        return result
     }
 
     // MARK: - System Calls
@@ -157,19 +192,6 @@ class ProcessMonitor {
         var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
         guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size > 0 else { return nil }
         return info
-    }
-
-    private func allProcesses() -> [kinfo_proc]? {
-        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL]
-        var size: Int = 0
-        guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > 0 else { return nil }
-
-        let count = size / MemoryLayout<kinfo_proc>.stride
-        var procs = [kinfo_proc](repeating: kinfo_proc(), count: count)
-        guard sysctl(&mib, 3, &procs, &size, nil, 0) == 0 else { return nil }
-
-        let actualCount = size / MemoryLayout<kinfo_proc>.stride
-        return Array(procs.prefix(actualCount))
     }
 
     private func getCpuTime(pid: pid_t) -> UInt64? {

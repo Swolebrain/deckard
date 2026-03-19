@@ -156,6 +156,7 @@ struct ControlMessage: Codable {
     let command: String
     var surfaceId: String?
     var sessionId: String?
+    var pid: Int32?
     var notificationType: String?
     var message: String?
     var workingDirectory: String?

@@ -52,6 +52,14 @@ class HookHandler {
             }
             reply(ControlResponse(ok: true))
 
+        // --- Process registration ---
+
+        case "register-pid":
+            if let surfaceId = message.surfaceId, let pid = message.pid {
+                ProcessMonitor.shared.registerShellPid(pid, forSurface: surfaceId)
+            }
+            reply(ControlResponse(ok: true))
+
         // --- Query commands ---
 
         case "list-tabs":

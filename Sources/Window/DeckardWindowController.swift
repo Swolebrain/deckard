@@ -536,9 +536,13 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         }
 
         let initialInput: String?
+        // Both Claude and terminal tabs register their shell PID with Deckard
+        // via the control socket so ProcessMonitor can match login PIDs to surfaces.
+        let registerPid = "printf '{\"command\":\"register-pid\",\"surfaceId\":\"%s\",\"pid\":%d}\\n' \"$DECKARD_SURFACE_ID\" $$ | nc -U \"$DECKARD_SOCKET_PATH\" -w 1 2>/dev/null; "
+
         if isClaude {
             // unset HISTFILE so the shell can't persist this line to history when claude exits.
-            let prefix = "unset HISTFILE; stty -echo; export PATH=\"$DECKARD_BIN_DIR:$PATH\"; clear; stty echo; "
+            let prefix = "unset HISTFILE; stty -echo; \(registerPid)export PATH=\"$DECKARD_BIN_DIR:$PATH\"; clear; stty echo; "
             let extraArgs = UserDefaults.standard.string(forKey: "claudeExtraArgs") ?? ""
             let extraArgsSuffix = extraArgs.isEmpty ? "" : " \(extraArgs)"
             if let sid = sessionIdToResume {
@@ -556,7 +560,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
                 initialInput = "\(prefix)claude\(extraArgsSuffix)\n"
             }
         } else {
-            initialInput = nil
+            initialInput = " \(registerPid)true\n"
         }
 
         surfaceView.createSurface(
@@ -756,12 +760,15 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     private func startProcessMonitor() {
         processMonitorTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
             guard let self = self else { return }
-            // Collect all tabs in creation order (for PID matching) with isClaude flag
-            let allTabs = Dictionary(uniqueKeysWithValues:
-                self.projects.flatMap { $0.tabs }.map { ($0.id, $0.isClaude) })
-            let tabInfos = self.tabCreationOrder.compactMap { id -> ProcessMonitor.TabInfo? in
-                guard let isClaude = allTabs[id] else { return nil }
-                return ProcessMonitor.TabInfo(surfaceId: id, isClaude: isClaude)
+            // Build tab infos — order doesn't matter since PID matching
+            // is done via control socket registration, not sorted order.
+            var tabInfos: [ProcessMonitor.TabInfo] = []
+            for project in self.projects {
+                for tab in project.tabs {
+                    tabInfos.append(ProcessMonitor.TabInfo(
+                        surfaceId: tab.id, isClaude: tab.isClaude,
+                        name: tab.name, projectPath: project.path))
+                }
             }
             DispatchQueue.global(qos: .utility).async {
                 let states = ProcessMonitor.shared.poll(tabs: tabInfos)
@@ -774,14 +781,28 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
     /// Last activity info per surface, used for tooltips.
     private var terminalActivity: [UUID: ProcessMonitor.ActivityInfo] = [:]
+    /// Consecutive active poll count per surface — require 2 before showing as active.
+    private var terminalActiveStreak: [UUID: Int] = [:]
 
     private func applyTerminalBadgeStates(_ states: [UUID: ProcessMonitor.ActivityInfo]) {
         var changed = false
         for project in projects {
             for tab in project.tabs where !tab.isClaude {
                 let activity = states[tab.id] ?? ProcessMonitor.ActivityInfo()
-                let newBadge: TabItem.BadgeState = activity.isActive ? .terminalActive : .terminalIdle
+
+                // Require 2 consecutive active polls to transition to terminalActive.
+                // This filters single-poll spikes from process changes or scheduler noise.
+                let streak = (terminalActiveStreak[tab.id] ?? 0)
+                let newStreak = activity.isActive ? streak + 1 : 0
+                terminalActiveStreak[tab.id] = newStreak
+                let confirmedActive = newStreak >= 2
+
+                let newBadge: TabItem.BadgeState = confirmedActive ? .terminalActive : .terminalIdle
                 if tab.badgeState != newBadge || terminalActivity[tab.id] != activity {
+                    if newBadge == .terminalActive && tab.badgeState != .terminalActive {
+                        DiagnosticLog.shared.log("processmon",
+                            "badge → terminalActive: project=\(project.path) tab=\"\(tab.name)\"")
+                    }
                     tab.badgeState = newBadge
                     terminalActivity[tab.id] = activity
                     changed = true
@@ -789,8 +810,6 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             }
         }
         if changed {
-            DiagnosticLog.shared.log("processmon",
-                "badge changes detected, triggering rebuild. currentFR=\(type(of: window?.firstResponder))")
             rebuildSidebar()
             rebuildTabBar()
         }
@@ -1083,6 +1102,20 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             rebuildSidebar()
             rebuildTabBar()
             saveState()
+
+            // Dump tab creation order → PID mapping for diagnostics
+            let mapping = tabCreationOrder.enumerated().map { (i, id) -> String in
+                var label = "?"
+                for project in projects {
+                    if let tab = project.tabs.first(where: { $0.id == id }) {
+                        label = "\(tab.isClaude ? "C" : "T"):\(tab.name)@\(project.name)"
+                        break
+                    }
+                }
+                return "  [\(i)] \(label)"
+            }.joined(separator: "\n")
+            DiagnosticLog.shared.log("processmon", "tabCreationOrder after restore (\(tabCreationOrder.count) tabs):\n\(mapping)")
+
             return
         }
 
