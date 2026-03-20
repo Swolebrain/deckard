@@ -16,8 +16,10 @@ class DeckardGhosttyApp {
         let dir = appSupport.appendingPathComponent("Deckard")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let path = dir.appendingPathComponent("ghostty-overrides").path
-        // Write Deckard defaults (idempotent — always overwritten on launch)
-        try? "macos-hush-login = true\n".write(toFile: path, atomically: true, encoding: .utf8)
+        // Write Deckard defaults (idempotent — always overwritten on launch).
+        // With direct: command prefix, login(1) is bypassed so macos-hush-login
+        // is no longer needed. Keep the file for future config overrides.
+        try? "\n".write(toFile: path, atomically: true, encoding: .utf8)
         return path
     }()
     /// Coalesces rapid wakeup signals from libghostty's I/O thread into a single

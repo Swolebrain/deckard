@@ -20,7 +20,6 @@ class TabItem {
     var name: String
     var isClaude: Bool
     var sessionId: String?
-    var sessionStarted: Bool = false
     var badgeState: BadgeState = .none
 
     enum BadgeState: String {
@@ -532,8 +531,6 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         }
         let tab = TabItem(surfaceView: surfaceView, name: tabName, isClaude: isClaude)
         tab.badgeState = isClaude ? .idle : .terminalIdle
-        tab.sessionStarted = !isClaude  // Terminal tabs are immediately visible
-
         var envVars: [String: String] = [:]
         if isClaude {
             tab.sessionId = sessionIdToResume
@@ -563,13 +560,15 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
                     tab.sessionId = nil
                 }
             }
-            // --login: exec via login shell so user's PATH includes claude
-            command = "\(binPath)/register-pid \(sid) \(socketPath) --login \(binPath)/claude\(claudeArgs)"
+            // direct: prefix tells ghostty to exec directly (no login(1) wrapper).
+            // register-pid --login handles login shell setup via exec zsh -l.
+            command = "direct:\(binPath)/register-pid \(sid) \(socketPath) --login \(binPath)/claude\(claudeArgs)"
             initialInput = nil
         } else {
-            // Register PID, then exec the user's login shell.
+            // direct: prefix bypasses ghostty's login(1) wrapper.
+            // register-pid --login provides the login shell.
             let userShell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
-            command = "\(binPath)/register-pid \(sid) \(socketPath) \(userShell) -l"
+            command = "direct:\(binPath)/register-pid \(sid) \(socketPath) --login \(userShell)"
             initialInput = nil
         }
 
@@ -584,30 +583,16 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             initialInput: initialInput
         )
 
-        // Safety timeout: reveal Claude tab if session-start hook never fires
-        if isClaude {
-            let tabId = tab.id
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
-                guard let self else { return }
-                for project in self.projects {
-                    if let t = project.tabs.first(where: { $0.id == tabId }), !t.sessionStarted {
-                        DiagnosticLog.shared.log("surface",
-                            "safety timeout: revealing Claude tab \(tabId) (hook.session-start never received)")
-                        t.sessionStarted = true
-                        if t.surfaceView.superview != nil { t.surfaceView.isHidden = false }
-                    }
-                }
-            }
-        }
-
         project.tabs.append(tab)
         tabCreationOrder.append(tab.id)
     }
 
     /// Guards against overlapping ghostty_surface_new() calls.
-    /// IOSurfaceCreate can re-enter the runloop, and posix_spawn for login(1)
-    /// fails with AccessDenied under concurrent creation. Session restore
-    /// avoids this by creating one tab per runloop cycle; we do the same here.
+    /// DispatchQueue.main.async does NOT provide real serialization —
+    /// IOSurfaceCreate re-enters the runloop and processes main-queue blocks.
+    /// A background-thread timer is the only reliable cooldown mechanism.
+    /// Excess requests are dropped (not queued) to avoid creating tabs
+    /// after the user releases the key.
     private var isCreatingTab = false
 
     func addTabToCurrentProject(isClaude: Bool) {
@@ -625,10 +610,12 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         showTab(project.tabs[project.selectedTabIndex])
         saveState()
 
-        // Re-enable on the next runloop cycle, matching createTabsProgressively's
-        // serialization pattern that avoids the AccessDenied race.
-        DispatchQueue.main.async { [weak self] in
-            self?.isCreatingTab = false
+        // Clear via background thread — can't be triggered by
+        // IOSurface runloop re-entrance (unlike main-queue blocks).
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            DispatchQueue.main.async {
+                self?.isCreatingTab = false
+            }
         }
     }
 
@@ -703,14 +690,18 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
                 view.leadingAnchor.constraint(equalTo: terminalContainerView.leadingAnchor),
                 view.trailingAnchor.constraint(equalTo: terminalContainerView.trailingAnchor),
             ])
+            // Force layout so the view gets its correct frame before
+            // the ghostty surface reports its size to the renderer.
+            terminalContainerView.layoutSubtreeIfNeeded()
         }
-        // Keep Claude tabs hidden until session-start hook fires
-        view.isHidden = tab.isClaude && !tab.sessionStarted
+        view.isHidden = false
         currentTerminalView = view
 
         let ok = window?.makeFirstResponder(view) ?? false
         DiagnosticLog.shared.log("focus",
-            "showTab: makeFirstResponder=\(ok) surfaceId=\(view.surfaceId)")
+            "showTab: makeFirstResponder=\(ok) surfaceId=\(view.surfaceId)" +
+            " frame=\(view.frame) surfaceAlive=\(view.surface != nil)" +
+            " wantsLayer=\(view.wantsLayer) hasLayer=\(view.layer != nil)")
         refreshContextBar(for: tab)
     }
 
@@ -945,15 +936,8 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
     }
 
     func revealClaudeTab(surfaceId: String) {
-        guard let tab = tabForSurfaceId(surfaceId) else { return }
-        tab.sessionStarted = true
-        // Only unhide if this tab is currently selected
-        if let project = currentProject {
-            let idx = project.selectedTabIndex
-            if idx >= 0, idx < project.tabs.count, project.tabs[idx].id == tab.id {
-                tab.surfaceView.isHidden = false
-            }
-        }
+        // No-op: all tabs are immediately visible (macos-hush-login
+        // suppresses "Last login", so no masking needed).
     }
 
     func isTabFocused(_ surfaceIdStr: String) -> Bool {
@@ -1165,8 +1149,13 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             project.tabs.insert(tab, at: min(insertAt, project.tabs.count))
         }
 
-        DispatchQueue.main.async { [self] in
-            createTabsProgressively(Array(remaining.dropFirst()))
+        // Use background-thread timer for genuine serialization.
+        // DispatchQueue.main.async fires during IOSurfaceCreate's runloop
+        // re-entrance, causing all tabs to be created in a single burst.
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.15) { [self] in
+            DispatchQueue.main.async {
+                self.createTabsProgressively(Array(remaining.dropFirst()))
+            }
         }
     }
 
