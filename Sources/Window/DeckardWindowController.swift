@@ -545,7 +545,10 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         let sid = surfaceView.surfaceId.uuidString
         let binPath = Bundle.main.resourceURL?.appendingPathComponent("bin").path ?? ""
 
-        let command: String
+        // Both tab types start the user's default shell as a login shell.
+        // Claude tabs send the claude command as initial input (like typing it).
+        let userShell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+        let command = "direct:\(binPath)/register-pid \(sid) \(socketPath) \(userShell) -l"
         let initialInput: String?
         if isClaude {
             let extraArgs = UserDefaults.standard.string(forKey: "claudeExtraArgs") ?? ""
@@ -560,15 +563,9 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
                     tab.sessionId = nil
                 }
             }
-            // direct: prefix tells ghostty to exec directly (no login(1) wrapper).
-            // register-pid --login handles login shell setup via exec zsh -l.
-            command = "direct:\(binPath)/register-pid \(sid) \(socketPath) --login \(binPath)/claude\(claudeArgs)"
-            initialInput = nil
+            // exec replaces the shell with claude (no parent shell lingering)
+            initialInput = "exec \(binPath)/claude\(claudeArgs)\n"
         } else {
-            // Exec the user's shell directly with -l for login mode.
-            // Don't use --login (POSIX wrapper) — it breaks non-POSIX shells like fish.
-            let userShell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
-            command = "direct:\(binPath)/register-pid \(sid) \(socketPath) \(userShell) -l"
             initialInput = nil
         }
 

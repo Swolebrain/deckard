@@ -1,15 +1,7 @@
 #!/bin/sh
-# Register this shell's PID with Deckard and optionally exec a command.
-# Usage: register-pid <surface-id> <socket-path> [--login] [command [args...]]
+# Register this shell's PID with Deckard and exec the given command.
+# Usage: register-pid <surface-id> <socket-path> [command [args...]]
 # PID is preserved across exec, so ProcessMonitor sees the right process.
-# --login: exec via the user's login shell so PATH is fully set up.
 SID="$1"; SOCKET="$2"; shift 2
 printf '{"command":"register-pid","surfaceId":"%s","pid":%d}\n' "$SID" $$ | /usr/bin/nc -U "$SOCKET" -w 1 >/dev/null 2>&1
-if [ "$1" = "--login" ]; then
-    shift
-    # Always use /bin/zsh as the POSIX wrapper — it sources login profiles
-    # for PATH setup before execing the command. Don't use $SHELL here:
-    # non-POSIX shells (fish, nushell) don't support 'exec "$@"' syntax.
-    exec /bin/zsh -l -c 'exec "$@"' _ "$@"
-fi
 [ $# -gt 0 ] && exec "$@"
