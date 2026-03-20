@@ -563,9 +563,10 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
                     tab.sessionId = nil
                 }
             }
-            // clear hides the echoed command; exec replaces the shell with claude.
-            // Just call "claude" — it must be in the user's PATH (standard install).
-            initialInput = "clear && exec claude\(claudeArgs)\n"
+            // Use Deckard's claude wrapper ($DECKARD_BIN_DIR/claude) which sets up
+            // hooks for badge state, activity detection, and session tracking.
+            // clear hides the echoed command; exec replaces the shell.
+            initialInput = "clear && exec \"$DECKARD_BIN_DIR/claude\"\(claudeArgs)\n"
         } else {
             initialInput = nil
         }
