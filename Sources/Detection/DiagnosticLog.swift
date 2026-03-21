@@ -9,6 +9,7 @@ class DiagnosticLog {
     private let fileURL: URL
     private let handle: FileHandle?
     private let formatter: DateFormatter
+    private let buildTag: String
 
     private init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -18,6 +19,19 @@ class DiagnosticLog {
         fileURL = dir.appendingPathComponent("diagnostic.log")
         formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
+
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        // Use executable mod date as build timestamp (changes on every recompile).
+        var buildDate = "?"
+        if let execURL = Bundle.main.executableURL,
+           let attrs = try? FileManager.default.attributesOfItem(atPath: execURL.path),
+           let modDate = attrs[.modificationDate] as? Date {
+            let df = DateFormatter()
+            df.dateFormat = "MMdd-HHmm"
+            buildDate = df.string(from: modDate)
+        }
+        buildTag = "v\(version)(\(build))-\(buildDate)"
 
         // Create file if needed
         if !FileManager.default.fileExists(atPath: fileURL.path) {
@@ -39,13 +53,22 @@ class DiagnosticLog {
 
         handle = try? FileHandle(forWritingTo: fileURL)
         handle?.seekToEndOfFile()
+
+        // Write a session header so we can distinguish app launches in the log.
+        if let handle {
+            let ts = formatter.string(from: Date())
+            let header = "\n[\(ts)] [startup] === Deckard \(buildTag) launched ===\n"
+            if let data = header.data(using: .utf8) {
+                handle.write(data)
+            }
+        }
     }
 
     func log(_ category: String, _ message: String) {
         queue.async { [weak self] in
             guard let self, let handle = self.handle else { return }
             let ts = self.formatter.string(from: Date())
-            let line = "[\(ts)] [\(category)] \(message)\n"
+            let line = "[\(ts)] [\(category)] [\(self.buildTag)] \(message)\n"
             if let data = line.data(using: .utf8) {
                 handle.write(data)
             }

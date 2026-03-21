@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/Users/gilles/Library/Developer/Xcode/DerivedData/Deckard-hkgvzqxyznptcubawtorcnhugxer/Build/Products/Debug/Deckard.app/Contents/MacOS/Deckard)",
+      "Bash(find /Users/gilles/Documents/trailblaze/deckard/Sources -name \"*.swift\" -exec basename {})",
+      "Bash(xcodebuild -project Deckard.xcodeproj -scheme Deckard -configuration Debug build)"
+    ]
+  }
+}

@@ -16,7 +16,6 @@
 		2D322E22D0679FD39D688539 /* SessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BE2AA0719D32ACCD1549184 /* SessionState.swift */; };
 		2E4FF6C3438B5F0E73C4FA87 /* ContextMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5FD7F070DDB4216278EFDE6 /* ContextMonitor.swift */; };
 		37FA9D946FD6ECA1DDF5898A /* DeckardWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8391EFB62A21AFA1DA62733F /* DeckardWindowController.swift */; };
-		41C3D848646ABF112104F6A4 /* DeckardGhosttyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A605D524B1CC5AAC25147C77 /* DeckardGhosttyApp.swift */; };
 		432752F9187D2E815F617B96 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88AA91CDBC6DDE958543FB29 /* main.swift */; };
 		63A33F81DE38406C15D1259A /* SettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD37F7C8CC5243DCF0A1346E /* SettingsWindow.swift */; };
 		70265FBBA52FB6E60AE4EFFE /* ProjectPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE07F0C0F9D62925EF195F7 /* ProjectPicker.swift */; };
@@ -24,11 +23,9 @@
 
 		A0FF9B9E99BC8B33FDCAB7E5 /* HookHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2B375A023FEBCB272DCFD7 /* HookHandler.swift */; };
 
-		F14F059C3523C8983BFF01FD /* SurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1819508589B0D94AC0310DDB /* SurfaceView.swift */; };
 		AABB0004AABB0004AABB0004 /* ShortcutNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB0005AABB0005AABB0005 /* ShortcutNames.swift */; };
 		AABB0006AABB0006AABB0006 /* DeckardHooksInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB0007AABB0007AABB0007 /* DeckardHooksInstaller.swift */; };
 		CC110001CC110001CC110001 /* ThemeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC110002CC110002CC110002 /* ThemeColors.swift */; };
-		CC110003CC110003CC110003 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC110004CC110004CC110004 /* ThemeManager.swift */; };
 		DD220001DD220001DD220001 /* ProcessMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD220002DD220002DD220002 /* ProcessMonitor.swift */; };
 		DD330001DD330001DD330001 /* DiagnosticLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD330002DD330002DD330002 /* DiagnosticLog.swift */; };
 		DD440001DD440001DD440001 /* CrashReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD440002DD440002DD440002 /* CrashReporter.swift */; };
@@ -36,7 +33,6 @@
 
 /* Begin PBXFileReference section */
 
-		1819508589B0D94AC0310DDB /* SurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceView.swift; sourceTree = "<group>"; };
 
 		4A2B375A023FEBCB272DCFD7 /* HookHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookHandler.swift; sourceTree = "<group>"; };
 		4BE07F0C0F9D62925EF195F7 /* ProjectPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectPicker.swift; sourceTree = "<group>"; };
@@ -46,7 +42,6 @@
 		8391EFB62A21AFA1DA62733F /* DeckardWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckardWindowController.swift; sourceTree = "<group>"; };
 		88AA91CDBC6DDE958543FB29 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		A32278396B92132B3CE7A5A4 /* Deckard.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Deckard.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A605D524B1CC5AAC25147C77 /* DeckardGhosttyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckardGhosttyApp.swift; sourceTree = "<group>"; };
 		D08100E22096E7498D571A20 /* ControlSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlSocket.swift; sourceTree = "<group>"; };
 
 		DD37F7C8CC5243DCF0A1346E /* SettingsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindow.swift; sourceTree = "<group>"; };
@@ -55,7 +50,6 @@
 		AABB0005AABB0005AABB0005 /* ShortcutNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutNames.swift; sourceTree = "<group>"; };
 		AABB0007AABB0007AABB0007 /* DeckardHooksInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckardHooksInstaller.swift; sourceTree = "<group>"; };
 		CC110002CC110002CC110002 /* ThemeColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeColors.swift; sourceTree = "<group>"; };
-		CC110004CC110004CC110004 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		DD220002DD220002DD220002 /* ProcessMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessMonitor.swift; sourceTree = "<group>"; };
 		DD330002DD330002DD330002 /* DiagnosticLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticLog.swift; sourceTree = "<group>"; };
 		DD440002DD440002DD440002 /* CrashReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashReporter.swift; sourceTree = "<group>"; };
@@ -99,10 +93,7 @@
 		6C026CBEF5BFC7F5AA2A142A /* Ghostty */ = {
 			isa = PBXGroup;
 			children = (
-				A605D524B1CC5AAC25147C77 /* DeckardGhosttyApp.swift */,
-				1819508589B0D94AC0310DDB /* SurfaceView.swift */,
 				CC110002CC110002CC110002 /* ThemeColors.swift */,
-				CC110004CC110004CC110004 /* ThemeManager.swift */,
 			);
 			path = Ghostty;
 			sourceTree = "<group>";
@@ -282,18 +273,15 @@
 				ST000004ST000004ST000004 /* TerminalSurface.swift in Sources */,
 				2E4FF6C3438B5F0E73C4FA87 /* ContextMonitor.swift in Sources */,
 				7E500DC8ECF3F7D073A098A4 /* ControlSocket.swift in Sources */,
-				41C3D848646ABF112104F6A4 /* DeckardGhosttyApp.swift in Sources */,
 				37FA9D946FD6ECA1DDF5898A /* DeckardWindowController.swift in Sources */,
 				A0FF9B9E99BC8B33FDCAB7E5 /* HookHandler.swift in Sources */,
 				70265FBBA52FB6E60AE4EFFE /* ProjectPicker.swift in Sources */,
 				2D322E22D0679FD39D688539 /* SessionState.swift in Sources */,
 				63A33F81DE38406C15D1259A /* SettingsWindow.swift in Sources */,
-				F14F059C3523C8983BFF01FD /* SurfaceView.swift in Sources */,
 				432752F9187D2E815F617B96 /* main.swift in Sources */,
 				AABB0004AABB0004AABB0004 /* ShortcutNames.swift in Sources */,
 				AABB0006AABB0006AABB0006 /* DeckardHooksInstaller.swift in Sources */,
 				CC110001CC110001CC110001 /* ThemeColors.swift in Sources */,
-				CC110003CC110003CC110003 /* ThemeManager.swift in Sources */,
 				DD220001DD220001DD220001 /* ProcessMonitor.swift in Sources */,
 				DD330001DD330001DD330001 /* DiagnosticLog.swift in Sources */,
 				DD440001DD440001DD440001 /* CrashReporter.swift in Sources */,
@@ -365,43 +353,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Resources/Deckard.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(PROJECT_DIR)/ghostty/macos/GhosttyKit.xcframework/macos-arm64",
-				);
-				HEADER_SEARCH_PATHS = (
-					"$(PROJECT_DIR)/ghostty/macos/GhosttyKit.xcframework/macos-arm64/Headers",
-				);
-				IMPORT_PATHS = (
-					"$(PROJECT_DIR)/ghostty/macos/GhosttyKit.xcframework/macos-arm64/Headers",
-				);
 				INFOPLIST_FILE = Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(PROJECT_DIR)/ghostty/macos/GhosttyKit.xcframework/macos-arm64",
-				);
-				OTHER_LDFLAGS = (
-					"-lghostty-fat",
-					"-framework Metal",
-					"-framework MetalKit",
-					"-framework CoreText",
-					"-framework QuartzCore",
-					"-framework IOSurface",
-					"-framework CoreGraphics",
-					"-framework Foundation",
-					"-framework AppKit",
-					"-lz",
-					"-lc++",
-					"-framework Carbon",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.deckard.app;
 				PRODUCT_NAME = Deckard;
 				SDKROOT = macosx;
-				SWIFT_INCLUDE_PATHS = (
-					"$(PROJECT_DIR)/ghostty/macos/GhosttyKit.xcframework/macos-arm64/Headers",
-				);
 				SWIFT_OBJC_BRIDGING_HEADER = "Sources/App/Deckard-Bridging-Header.h";
 			};
 			name = Release;
@@ -475,43 +434,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Resources/Deckard.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(PROJECT_DIR)/ghostty/macos/GhosttyKit.xcframework/macos-arm64",
-				);
-				HEADER_SEARCH_PATHS = (
-					"$(PROJECT_DIR)/ghostty/macos/GhosttyKit.xcframework/macos-arm64/Headers",
-				);
-				IMPORT_PATHS = (
-					"$(PROJECT_DIR)/ghostty/macos/GhosttyKit.xcframework/macos-arm64/Headers",
-				);
 				INFOPLIST_FILE = Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(PROJECT_DIR)/ghostty/macos/GhosttyKit.xcframework/macos-arm64",
-				);
-				OTHER_LDFLAGS = (
-					"-lghostty-fat",
-					"-framework Metal",
-					"-framework MetalKit",
-					"-framework CoreText",
-					"-framework QuartzCore",
-					"-framework IOSurface",
-					"-framework CoreGraphics",
-					"-framework Foundation",
-					"-framework AppKit",
-					"-lz",
-					"-lc++",
-					"-framework Carbon",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.deckard.app;
 				PRODUCT_NAME = Deckard;
 				SDKROOT = macosx;
-				SWIFT_INCLUDE_PATHS = (
-					"$(PROJECT_DIR)/ghostty/macos/GhosttyKit.xcframework/macos-arm64/Headers",
-				);
 				SWIFT_OBJC_BRIDGING_HEADER = "Sources/App/Deckard-Bridging-Header.h";
 			};
 			name = Debug;

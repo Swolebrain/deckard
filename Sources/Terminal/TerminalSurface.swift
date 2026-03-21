@@ -105,3 +105,12 @@ class TerminalSurface: NSObject, LocalProcessTerminalViewDelegate {
         onProcessExit?(self)
     }
 }
+
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let deckardSurfaceTitleChanged = Notification.Name("deckardSurfaceTitleChanged")
+    static let deckardSurfaceClosed = Notification.Name("deckardSurfaceClosed")
+    static let deckardNewTab = Notification.Name("deckardNewTab")
+    static let deckardCloseTab = Notification.Name("deckardCloseTab")
+}

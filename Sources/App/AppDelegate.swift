@@ -1,79 +1,22 @@
 import AppKit
-import GhosttyKit
 import KeyboardShortcuts
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     static var shared: AppDelegate?
 
-    private(set) var ghosttyApp: DeckardGhosttyApp!
     var windowController: DeckardWindowController?
     private let hookHandler = HookHandler()
-
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let log = DiagnosticLog.shared
         log.log("startup", "applicationDidFinishLaunching entered")
         Self.shared = self
 
-        // Set GHOSTTY_RESOURCES_DIR BEFORE creating the Ghostty app so shell
-        // integration, terminfo, and theme resolution work during config loading.
-        // Layout: GHOSTTY_RESOURCES_DIR points to a dir with themes/ and shell-integration/,
-        // with terminfo/ as a sibling (at ../terminfo).
-        log.log("startup", "Resolving GHOSTTY_RESOURCES_DIR...")
-        let devResources = Bundle.main.bundlePath + "/../ghostty/zig-out/share/ghostty"
-        let devTerminfo = Bundle.main.bundlePath + "/../ghostty/zig-out/share/terminfo"
-        let bundleGhostty = (Bundle.main.resourcePath ?? "") + "/ghostty"
-        let bundleTerminfo = (Bundle.main.resourcePath ?? "") + "/terminfo"
-        if FileManager.default.fileExists(atPath: devResources + "/shell-integration") {
-            setenv("GHOSTTY_RESOURCES_DIR", devResources, 1)
-            setenv("TERMINFO_DIRS", devTerminfo, 1)
-            log.log("startup", "Using dev resources: \(devResources)")
-        } else if FileManager.default.fileExists(atPath: bundleGhostty + "/themes") {
-            setenv("GHOSTTY_RESOURCES_DIR", bundleGhostty, 1)
-            setenv("TERMINFO_DIRS", bundleTerminfo, 1)
-            log.log("startup", "Using bundle resources: \(bundleGhostty)")
-        } else {
-            log.log("startup", "WARNING: No ghostty resources found")
-        }
-
-        // Set up the Ghostty app wrapper (creates ghostty_app_t with callbacks).
-        log.log("startup", "Creating DeckardGhosttyApp...")
-        ghosttyApp = DeckardGhosttyApp()
-        guard ghosttyApp.app != nil else {
-            log.log("startup", "FATAL: DeckardGhosttyApp.app is nil — Ghostty engine failed to initialize")
-            let alert = NSAlert()
-            alert.messageText = "Failed to Initialize Terminal"
-            alert.informativeText = "Could not create the Ghostty terminal engine. The app cannot continue."
-            alert.alertStyle = .critical
-            alert.runModal()
-            NSApp.terminate(nil)
-            return
-        }
-        log.log("startup", "DeckardGhosttyApp created successfully")
-
-        // Initialize theme manager and compute initial theme colors.
-        // Note: no notification is posted here — the window controller doesn't exist yet.
-        // It reads ThemeManager.shared.currentColors directly during its init.
-        log.log("startup", "Loading themes...")
-        ThemeManager.shared.loadAvailableThemes()
-        if let savedTheme = ThemeManager.shared.currentThemeName,
-           let themeInfo = ThemeManager.shared.availableThemes.first(where: { $0.name == savedTheme }),
-           let colors = ThemeManager.parseThemeColors(at: themeInfo.path) {
-            ThemeManager.shared.currentColors = ThemeColors(background: colors.background, foreground: colors.foreground)
-            log.log("startup", "Applied saved theme: \(savedTheme)")
-        } else {
-            ThemeManager.shared.currentColors = ThemeColors(
-                background: ghosttyApp.defaultBackgroundColor,
-                foreground: ghosttyApp.defaultForegroundColor
-            )
-            log.log("startup", "Using default theme colors")
-        }
-
         // Set up the main menu.
         log.log("startup", "Setting up main menu...")
         setupMainMenu()
 
-        // Listen for notifications from ghostty callbacks.
+        // Listen for notifications.
         log.log("startup", "Registering notification observers...")
         let nc = NotificationCenter.default
         nc.addObserver(self, selector: #selector(handleSurfaceClosed(_:)), name: .deckardSurfaceClosed, object: nil)
@@ -87,8 +30,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ControlSocket.shared.onMessage = { [weak self] message, reply in
             self?.hookHandler.handle(message, reply: reply)
         }
-
-        // Set socket path in environment for child processes.
         setenv("DECKARD_SOCKET_PATH", ControlSocket.shared.path, 1)
         log.log("startup", "Control socket at: \(ControlSocket.shared.path ?? "(nil)")")
 
@@ -102,7 +43,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Create and show the main window.
         log.log("startup", "Creating window controller...")
-        windowController = DeckardWindowController(ghosttyApp: ghosttyApp)
+        windowController = DeckardWindowController()
         hookHandler.windowController = windowController
         log.log("startup", "Showing main window...")
         windowController?.showWindow(nil)
@@ -130,9 +71,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func handleTitleChanged(_ notification: Notification) {
-        guard let surface = notification.userInfo?["surface"] as? ghostty_surface_t,
+        guard let surfaceId = notification.userInfo?["surfaceId"] as? UUID,
               let title = notification.userInfo?["title"] as? String else { return }
-        windowController?.setTitle(title, forSurface: surface)
+        windowController?.setTitle(title, forSurfaceId: surfaceId)
     }
 
     @objc private func handleNewTab() {
@@ -209,7 +150,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         fileMenuItem.submenu = fileMenu
         mainMenu.addItem(fileMenuItem)
 
-        // Edit menu (system standard — not configurable)
+        // Edit menu (system standard)
         let editMenuItem = NSMenuItem()
         let editMenu = NSMenu(title: "Edit")
         editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
@@ -228,7 +169,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
 
-        // Window menu (system standard — not configurable)
+        // Window menu (system standard)
         let windowMenuItem = NSMenuItem()
         let windowMenu = NSMenu(title: "Window")
         windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
@@ -264,8 +205,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func closeCurrentTab() {
-        // If a secondary window (e.g. Settings) is key, close it instead of
-        // closing a terminal tab in the main window.
         if let keyWindow = NSApp.keyWindow,
            keyWindow != windowController?.window {
             keyWindow.performClose(nil)
@@ -282,8 +221,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         windowController?.closeCurrentProject()
     }
-
-
 
     @objc private func selectNextTab() {
         windowController?.selectNextTab()
@@ -309,7 +246,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func installDeckardSkill() {
         DispatchQueue.global(qos: .utility).async {
-            // Only install if gh CLI is available
             guard FileManager.default.isExecutableFile(atPath: "/usr/local/bin/gh")
                     || FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/gh")
                     || Self.whichGh() != nil else { return }
@@ -340,11 +276,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             After filing, show the issue URL.
             """
 
-            // Only write if the file doesn't exist or was written by Deckard
             let marker = "gh issue create --repo gi11es/deckard"
             if let existing = try? String(contentsOfFile: skillPath, encoding: .utf8),
                !existing.contains(marker) {
-                return  // User has a custom /deckard command, don't overwrite
+                return
             }
 
             try? content.write(toFile: skillPath, atomically: true, encoding: .utf8)
