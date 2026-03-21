@@ -42,6 +42,13 @@ class TerminalNSView: NSView {
     private var keyDownCount: Int = 0
     /// Last time a non-modifier keyAction returned true.
     private var lastSuccessfulCharKeyTime: TimeInterval = 0
+    /// Last time a GHOSTTY_ACTION_RENDER was received for this surface.
+    /// Updated from the action callback thread; read from main thread (benign race).
+    var lastRenderActionTime: TimeInterval = 0
+    /// Whether the renderer has reported unhealthy status.
+    var rendererUnhealthy: Bool = false
+    /// Last time a recovery nudge was attempted, to avoid spamming.
+    private var lastRecoveryNudgeTime: TimeInterval = 0
     /// When becomeFirstResponder last succeeded.
     private var focusGainedTime: TimeInterval = 0
     /// Serial queue for ghostty surface calls that acquire the renderer/IO lock.
@@ -420,12 +427,43 @@ class TerminalNSView: NSView {
             lastKeyDownLogTime = now
         }
 
-        // Stuck detection: keyDown is being called but no character key has succeeded recently
-        if keyDownCount > 10 && lastSuccessfulCharKeyTime > 0 && (now - lastSuccessfulCharKeyTime) > 2.0 {
+        // Stuck detection: keyDown is being called but input isn't working.
+        // Three conditions (any one triggers):
+        //   1. Character keys succeeded before but stopped (original check)
+        //   2. Surface never had a successful character key despite many keyDown calls
+        //   3. Render heartbeat is stale despite active input
+        let renderStale = lastRenderActionTime > 0 && (now - lastRenderActionTime) > 3.0
+        let neverTyped = lastSuccessfulCharKeyTime == 0 && (now - focusGainedTime) > 3.0
+        let charTimeout = lastSuccessfulCharKeyTime > 0 && (now - lastSuccessfulCharKeyTime) > 2.0
+
+        if keyDownCount > 10 && (charTimeout || neverTyped || renderStale || rendererUnhealthy) {
+            let reason: String
+            if rendererUnhealthy { reason = "renderer_unhealthy" }
+            else if renderStale { reason = "render_stale(\(String(format: "%.1f", now - lastRenderActionTime))s)" }
+            else if neverTyped { reason = "never_typed" }
+            else { reason = "char_timeout(\(String(format: "%.1f", now - lastSuccessfulCharKeyTime))s)" }
+
+            let renderAge = lastRenderActionTime > 0
+                ? String(format: "%.1f", now - lastRenderActionTime)
+                : "never"
             DiagnosticLog.shared.log("input",
-                "STUCK: keyDown called but no successful char keyAction in \(String(format: "%.1f", now - lastSuccessfulCharKeyTime))s. " +
-                "keyDownCount=\(keyDownCount) surface=\(surface != nil) " +
+                "STUCK(\(reason)): keyDownCount=\(keyDownCount) " +
+                "lastRender=\(renderAge)s " +
                 "windowFR=\(type(of: window?.firstResponder)) surfaceId=\(surfaceId)")
+
+            // Attempt soft recovery: force a resize to kick the Metal pipeline.
+            // Throttle to once per 5 seconds to avoid spamming.
+            if (now - lastRecoveryNudgeTime) > 5.0 {
+                lastRecoveryNudgeTime = now
+                DiagnosticLog.shared.log("input", "STUCK: attempting recovery nudge surfaceId=\(surfaceId)")
+                updateSurfaceSize()
+                if let window = self.window {
+                    let scale = window.backingScaleFactor
+                    surfaceQueue.async {
+                        ghostty_surface_set_content_scale(surface, scale, scale)
+                    }
+                }
+            }
         }
 
         // Translate mods to handle configs like option-as-alt.
@@ -645,58 +683,47 @@ class TerminalNSView: NSView {
 
     /// Send a key event to Ghostty. Based on Ghostty's keyAction (MIT).
     /// Text is only sent if the first codepoint is printable (>= 0x20).
-    /// Dispatched to surfaceQueue to avoid deadlocking the main thread with
-    /// libghostty's renderer/IO lock (same pattern as destroySurface/set_focus).
+    @discardableResult
     private func keyAction(
         _ action: ghostty_input_action_e,
         event: NSEvent,
         translationMods: NSEvent.ModifierFlags? = nil,
         text: String? = nil,
         composing: Bool = false
-    ) {
-        guard let surface = self.surface else { return }
+    ) -> Bool {
+        guard let surface = self.surface else { return false }
 
         var keyEv = Self.ghosttyKeyEvent(event, action, translationMods: translationMods)
         keyEv.composing = composing
 
-        // Capture values for the async block. The text String is copied by value
-        // (not as a C pointer) so it remains valid across the dispatch boundary.
-        let keyCode = event.keyCode
-        let isModifierOnly = [55, 56, 57, 58, 59, 60, 61, 62, 63].contains(Int(keyCode))
-        let isCharAction = !isModifierOnly && (action == GHOSTTY_ACTION_PRESS || action == GHOSTTY_ACTION_REPEAT)
-        let printableText: String? = if let text, !text.isEmpty,
-           let codepoint = text.utf8.first, codepoint >= 0x20 { text } else { nil }
-        let focusGained = focusGainedTime
-        let sid = surfaceId
-
-        surfaceQueue.async { [weak self] in
-            let start = ProcessInfo.processInfo.systemUptime
-            let result: Bool
-            if let printableText {
-                result = printableText.withCString { ptr in
-                    keyEv.text = ptr
-                    return ghostty_surface_key(surface, keyEv)
-                }
-            } else {
-                result = ghostty_surface_key(surface, keyEv)
+        let start = ProcessInfo.processInfo.systemUptime
+        let result: Bool
+        if let text, !text.isEmpty,
+           let codepoint = text.utf8.first, codepoint >= 0x20 {
+            result = text.withCString { ptr in
+                keyEv.text = ptr
+                return ghostty_surface_key(surface, keyEv)
             }
-
-            let elapsed = ProcessInfo.processInfo.systemUptime - start
-
-            // Track successful character key actions (non-modifier press/repeat).
-            // Benign race with keyDown's stuck detection (read on main thread).
-            if result && isCharAction {
-                self?.lastSuccessfulCharKeyTime = start
-            }
-
-            // Verbose logging for first 5s after focus gain, or on failure/slowness
-            let sinceFocus = start - focusGained
-            if elapsed > 0.1 || !result || (sinceFocus < 5 && !isModifierOnly) {
-                DiagnosticLog.shared.log("input",
-                    "keyAction: keyCode=\(keyCode) result=\(result) elapsed=\(String(format: "%.3f", elapsed))s surfaceId=\(sid)" +
-                    (sinceFocus < 5 ? " [VERBOSE sinceFocus=\(String(format: "%.1f", sinceFocus))s]" : ""))
-            }
+        } else {
+            result = ghostty_surface_key(surface, keyEv)
         }
+
+        let elapsed = ProcessInfo.processInfo.systemUptime - start
+
+        // Track successful character key actions (non-modifier press/repeat).
+        let isModifierOnly = [55, 56, 57, 58, 59, 60, 61, 62, 63].contains(Int(event.keyCode))
+        if result && !isModifierOnly && (action == GHOSTTY_ACTION_PRESS || action == GHOSTTY_ACTION_REPEAT) {
+            lastSuccessfulCharKeyTime = start
+        }
+
+        // Verbose logging for first 5s after focus gain, or on failure/slowness
+        let sinceFocus = start - focusGainedTime
+        if elapsed > 0.1 || !result || (sinceFocus < 5 && !isModifierOnly) {
+            DiagnosticLog.shared.log("input",
+                "keyAction: keyCode=\(event.keyCode) result=\(result) elapsed=\(String(format: "%.3f", elapsed))s surfaceId=\(surfaceId)" +
+                (sinceFocus < 5 ? " [VERBOSE sinceFocus=\(String(format: "%.1f", sinceFocus))s]" : ""))
+        }
+        return result
     }
 
     /// Build a ghostty_input_key_s from an NSEvent.
