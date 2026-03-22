@@ -24,6 +24,13 @@ class TerminalSurface: NSObject, LocalProcessTerminalViewDelegate {
         self.terminalView = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         super.init()
         terminalView.processDelegate = self
+        // Apply current theme colors
+        ThemeManager.shared.currentScheme.apply(to: terminalView)
+    }
+
+    /// Apply a color scheme to this terminal.
+    func applyColorScheme(_ scheme: TerminalColorScheme) {
+        scheme.apply(to: terminalView)
     }
 
     /// Start a shell process in the terminal.

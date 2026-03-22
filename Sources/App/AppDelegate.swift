@@ -12,6 +12,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         log.log("startup", "applicationDidFinishLaunching entered")
         Self.shared = self
 
+        // Load themes and apply saved selection.
+        log.log("startup", "Loading themes...")
+        ThemeManager.shared.loadAvailableThemes()
+        ThemeManager.shared.applySavedTheme()
+        log.log("startup", "Loaded \(ThemeManager.shared.availableThemes.count) themes, current: \(ThemeManager.shared.currentThemeName ?? "default")")
+
         // Set up the main menu.
         log.log("startup", "Setting up main menu...")
         setupMainMenu()
