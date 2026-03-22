@@ -8,7 +8,7 @@ class ControlSocket {
     private var serverSocket: Int32 = -1
     private var socketPath: String = ""
     private var listenSource: DispatchSourceRead?
-    private var clientSources: [DispatchSourceRead] = []
+    private var clientSources: [Int32: DispatchSourceRead] = [:]
 
     /// Callback for incoming messages.
     var onMessage: ((ControlMessage, @escaping (ControlResponse) -> Void) -> Void)?
@@ -79,7 +79,7 @@ class ControlSocket {
     func stop() {
         listenSource?.cancel()
         listenSource = nil
-        for source in clientSources {
+        for source in clientSources.values {
             source.cancel()
         }
         clientSources.removeAll()
@@ -110,19 +110,15 @@ class ControlSocket {
             close(clientFd)
         }
         source.resume()
-        clientSources.append(source)
+        clientSources[clientFd] = source
     }
 
     private func readFromClient(fd: Int32) {
         var buffer = [UInt8](repeating: 0, count: 65536)
         let bytesRead = read(fd, &buffer, buffer.count)
         guard bytesRead > 0 else {
-            // Client disconnected — clean up
-            if let idx = clientSources.firstIndex(where: { $0 as AnyObject === $0 as AnyObject }) {
-                clientSources[idx].cancel()
-                clientSources.remove(at: idx)
-            }
-            close(fd)
+            // Client disconnected — cancel source (its cancel handler closes fd)
+            clientSources.removeValue(forKey: fd)?.cancel()
             return
         }
 
@@ -131,9 +127,12 @@ class ControlSocket {
             // Try to send error response
             let errorResp = "{\"ok\":false,\"error\":\"invalid JSON\"}\n"
             _ = errorResp.withCString { write(fd, $0, strlen($0)) }
-            close(fd)
+            clientSources.removeValue(forKey: fd)?.cancel()
             return
         }
+
+        // Remove the source now — we've read the message and will close fd after replying
+        let source = clientSources.removeValue(forKey: fd)
 
         DispatchQueue.main.async { [weak self] in
             self?.onMessage?(message) { response in
@@ -144,7 +143,8 @@ class ControlSocket {
                         _ = write(fd, ptr.baseAddress!, resp.count)
                     }
                 }
-                close(fd)
+                // Cancel the source (its cancel handler closes fd)
+                source?.cancel()
             }
         }
     }
