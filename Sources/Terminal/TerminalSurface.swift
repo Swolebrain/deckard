@@ -1,6 +1,58 @@
 import AppKit
 import SwiftTerm
 
+// MARK: - File Drag-and-Drop Terminal View
+
+/// LocalProcessTerminalView subclass that accepts file drags from Finder
+/// and pastes shell-escaped paths into the terminal.
+private class DeckardTerminalView: LocalProcessTerminalView {
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        registerForDraggedTypes([.fileURL])
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        registerForDraggedTypes([.fileURL])
+    }
+
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        if sender.draggingPasteboard.canReadObject(forClasses: [NSURL.self],
+                                                    options: [.urlReadingFileURLsOnly: true]) {
+            return .copy
+        }
+        return super.draggingEntered(sender)
+    }
+
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        guard let urls = sender.draggingPasteboard.readObjects(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+        ) as? [URL], !urls.isEmpty else {
+            return super.performDragOperation(sender)
+        }
+
+        let escaped = urls.map { Self.shellEscape($0.path) }
+        send(txt: escaped.joined(separator: " "))
+        return true
+    }
+
+    /// Escape a file path for safe pasting into a shell.
+    private static func shellEscape(_ path: String) -> String {
+        let special: Set<Character> = [" ", "'", "\"", "\\", "(", ")", "[", "]",
+                                        "{", "}", "$", "`", "!", "&", "|", ";",
+                                        "<", ">", "?", "*", "#", "~"]
+        var result = ""
+        for ch in path {
+            if special.contains(ch) {
+                result.append("\\")
+            }
+            result.append(ch)
+        }
+        return result
+    }
+}
+
 /// Wraps a SwiftTerm LocalProcessTerminalView for use in Deckard's tab system.
 /// This is the ONLY file that imports SwiftTerm — the rest of Deckard talks
 /// to TerminalSurface through its public interface.
@@ -14,7 +66,7 @@ class TerminalSurface: NSObject, LocalProcessTerminalViewDelegate {
     /// The tmux session name, if this terminal is wrapped in tmux.
     var tmuxSessionName: String?
 
-    private let terminalView: LocalProcessTerminalView
+    private let terminalView: DeckardTerminalView
     private var processExited = false
     private var pendingInitialInput: String?
 
@@ -43,7 +95,7 @@ class TerminalSurface: NSObject, LocalProcessTerminalViewDelegate {
 
     init(surfaceId: UUID = UUID()) {
         self.surfaceId = surfaceId
-        self.terminalView = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+        self.terminalView = DeckardTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         super.init()
         terminalView.processDelegate = self
         // Apply current theme colors
