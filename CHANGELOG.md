@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.1](https://github.com/gi11es/deckard/compare/v0.7.0...v0.7.1) (2026-03-23)
+
+
+### Bug Fixes
+
+* enable tmux mouse support for pane clicks and split dragging ([55f956f](https://github.com/gi11es/deckard/commit/55f956f2b8b17a4c8161562fa6df7c0e8e1fb373))
+* mouse drag in tmux panes (pane resize and text selection) ([5864261](https://github.com/gi11es/deckard/commit/5864261cddc6415c730878c003f6dca2639d0ec1))
+* restore file drag-and-drop into terminal tabs ([be4aa01](https://github.com/gi11es/deckard/commit/be4aa0111e11d94b467465b67233efcaf9adc133))
+
 ## [0.7.0](https://github.com/gi11es/deckard/compare/v0.6.0...v0.7.0) (2026-03-23)
 
 
