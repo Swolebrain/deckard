@@ -93,14 +93,22 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         case .about: newView = makeAboutPane()
         }
 
-        // Resize window to fit the new pane content
-        let newSize = newView.fittingSize
+        // Resize window to fit the new pane content.
+        // Use a fixed preferred height for panes with scroll views to prevent
+        // fittingSize from expanding to the full content height (e.g., 485 theme cards).
+        let preferredHeight: CGFloat = switch pane {
+        case .theme: 580
+        case .terminal: 240
+        case .general: 160
+        case .shortcuts: 340
+        case .about: 200
+        }
         let oldFrame = window.frame
         let contentRect = window.contentRect(forFrameRect: oldFrame)
         let chromeHeight = oldFrame.height - contentRect.height
         var newFrame = oldFrame
-        newFrame.size.height = newSize.height + chromeHeight
-        newFrame.size.width = max(newSize.width, 480)
+        newFrame.size.height = preferredHeight + chromeHeight
+        newFrame.size.width = 720
         newFrame.origin.y += oldFrame.height - newFrame.height
 
         window.contentView = newView
