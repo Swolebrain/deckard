@@ -6,14 +6,16 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
 
     private enum Pane: String, CaseIterable {
         case general = "General"
-        case appearance = "Appearance"
+        case theme = "Theme"
+        case terminal = "Terminal"
         case shortcuts = "Shortcuts"
         case about = "About"
 
         var icon: NSImage {
             switch self {
             case .general: return NSImage(systemSymbolName: "gearshape", accessibilityDescription: "General")!
-            case .appearance: return NSImage(systemSymbolName: "paintpalette", accessibilityDescription: "Appearance")!
+            case .theme: return NSImage(systemSymbolName: "paintpalette", accessibilityDescription: "Theme")!
+            case .terminal: return NSImage(systemSymbolName: "terminal", accessibilityDescription: "Terminal")!
             case .shortcuts: return NSImage(systemSymbolName: "keyboard", accessibilityDescription: "Shortcuts")!
             case .about: return NSImage(systemSymbolName: "info.circle", accessibilityDescription: "About")!
             }
@@ -85,7 +87,8 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         let newView: NSView
         switch pane {
         case .general: newView = makeGeneralPane()
-        case .appearance: newView = makeAppearancePane()
+        case .theme: newView = makeThemePane()
+        case .terminal: newView = makeTerminalPane()
         case .shortcuts: newView = makeShortcutsPane()
         case .about: newView = makeAboutPane()
         }
@@ -175,13 +178,16 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         return pane
     }
 
-    // MARK: - Appearance Pane
+    // MARK: - Theme Pane
 
     private var themeCollectionScrollView: NSScrollView?
     private var themeCardContainer: FlippedCardContainer?
     private var themeCards: [ThemeCardView] = []
     private var filteredThemeCards: [ThemeCardView] = []
     private var themeSearchField: NSSearchField?
+
+    // MARK: - Terminal Pane
+
     private var fontNamePopup: NSPopUpButton?
     private var fontSizeField: NSTextField?
     private var fontSizeStepper: NSStepper?
@@ -193,14 +199,10 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         override var isFlipped: Bool { true }
     }
 
-    private func makeAppearancePane() -> NSView {
+    private func makeThemePane() -> NSView {
         let pane = NSView()
 
-        // Theme picker header
-        let label = NSTextField(labelWithString: "Theme:")
-        label.font = .systemFont(ofSize: 13, weight: .medium)
-        label.translatesAutoresizingMaskIntoConstraints = false
-
+        // Search field
         let searchField = NSSearchField()
         searchField.placeholderString = "Search themes..."
         searchField.translatesAutoresizingMaskIntoConstraints = false
@@ -221,7 +223,6 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         }
         filteredThemeCards = themeCards
 
-        // Mark the current theme as selected
         let currentName = ThemeManager.shared.currentThemeName
         for card in themeCards {
             card.isSelectedTheme = (currentName == nil && card.themePath == nil)
@@ -233,9 +234,7 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         container.translatesAutoresizingMaskIntoConstraints = false
         self.themeCardContainer = container
 
-        for card in themeCards {
-            container.addSubview(card)
-        }
+        for card in themeCards { container.addSubview(card) }
 
         let scrollView = NSScrollView()
         scrollView.documentView = container
@@ -245,120 +244,10 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         scrollView.drawsBackground = false
         self.themeCollectionScrollView = scrollView
 
-        pane.addSubview(label)
         pane.addSubview(searchField)
         pane.addSubview(scrollView)
 
-        // --- Font picker section ---
-        let fontDivider = NSBox()
-        fontDivider.boxType = .separator
-        fontDivider.translatesAutoresizingMaskIntoConstraints = false
-        pane.addSubview(fontDivider)
-
-        let fontLabel = NSTextField(labelWithString: "Font:")
-        fontLabel.font = .systemFont(ofSize: 13, weight: .medium)
-        fontLabel.translatesAutoresizingMaskIntoConstraints = false
-        pane.addSubview(fontLabel)
-
-        let savedFontName = UserDefaults.standard.string(forKey: "terminalFontName") ?? "SF Mono"
-        let savedFontSize = UserDefaults.standard.double(forKey: "terminalFontSize")
-        let currentFontSize = savedFontSize > 0 ? savedFontSize : 13.0
-
-        let fontNamePopup = NSPopUpButton(frame: .zero, pullsDown: false)
-        fontNamePopup.translatesAutoresizingMaskIntoConstraints = false
-        let monoFonts = NSFontManager.shared.availableFontFamilies.filter { family in
-            guard let font = NSFont(name: family, size: 12) else { return false }
-            return font.isFixedPitch || family.localizedCaseInsensitiveContains("mono")
-                || family.localizedCaseInsensitiveContains("courier")
-                || family.localizedCaseInsensitiveContains("menlo")
-                || family.localizedCaseInsensitiveContains("consolas")
-        }
-        for family in monoFonts.sorted() {
-            fontNamePopup.addItem(withTitle: family)
-        }
-        if let idx = fontNamePopup.itemTitles.firstIndex(of: savedFontName) {
-            fontNamePopup.selectItem(at: idx)
-        }
-        fontNamePopup.target = self
-        fontNamePopup.action = #selector(fontSettingChanged(_:))
-        self.fontNamePopup = fontNamePopup
-        pane.addSubview(fontNamePopup)
-
-        let sizeLabel = NSTextField(labelWithString: "Size:")
-        sizeLabel.font = .systemFont(ofSize: 13, weight: .medium)
-        sizeLabel.translatesAutoresizingMaskIntoConstraints = false
-        pane.addSubview(sizeLabel)
-
-        let sizeField = NSTextField(string: String(format: "%.0f", currentFontSize))
-        sizeField.translatesAutoresizingMaskIntoConstraints = false
-        sizeField.alignment = .center
-        let formatter = NumberFormatter()
-        formatter.minimum = 8
-        formatter.maximum = 36
-        formatter.allowsFloats = false
-        sizeField.formatter = formatter
-        sizeField.target = self
-        sizeField.action = #selector(fontSettingChanged(_:))
-        self.fontSizeField = sizeField
-        pane.addSubview(sizeField)
-
-        let sizeStepper = NSStepper()
-        sizeStepper.translatesAutoresizingMaskIntoConstraints = false
-        sizeStepper.minValue = 8
-        sizeStepper.maxValue = 36
-        sizeStepper.increment = 1
-        sizeStepper.doubleValue = currentFontSize
-        sizeStepper.target = self
-        sizeStepper.action = #selector(fontSizeStepperChanged(_:))
-        self.fontSizeStepper = sizeStepper
-        pane.addSubview(sizeStepper)
-
-        // Font preview
-        let previewBox = NSBox()
-        previewBox.title = ""
-        previewBox.boxType = .custom
-        previewBox.borderType = .bezelBorder
-        previewBox.translatesAutoresizingMaskIntoConstraints = false
-        pane.addSubview(previewBox)
-
-        let previewText = NSTextField(labelWithString: "ABCDEFGHIJKLM 0123456789\nThe quick brown fox jumps over the lazy dog\n~$ claude --help")
-        previewText.maximumNumberOfLines = 3
-        previewText.font = NSFont(name: savedFontName, size: CGFloat(currentFontSize))
-            ?? NSFont.monospacedSystemFont(ofSize: CGFloat(currentFontSize), weight: .regular)
-        previewText.textColor = .labelColor
-        previewText.translatesAutoresizingMaskIntoConstraints = false
-        previewBox.addSubview(previewText)
-        self.fontPreviewLabel = previewText
-
-        // --- Scrollback section ---
-        let scrollLabel = NSTextField(labelWithString: "Scrollback:")
-        scrollLabel.font = .systemFont(ofSize: 13, weight: .medium)
-        scrollLabel.translatesAutoresizingMaskIntoConstraints = false
-        pane.addSubview(scrollLabel)
-
-        let savedScrollback = UserDefaults.standard.integer(forKey: "terminalScrollback")
-        let currentScrollback = savedScrollback > 0 ? savedScrollback : TerminalSurface.defaultScrollback
-
-        let scrollField = NSTextField(string: "\(currentScrollback)")
-        scrollField.translatesAutoresizingMaskIntoConstraints = false
-        scrollField.alignment = .right
-        let scrollFormatter = NumberFormatter()
-        scrollFormatter.minimum = 100
-        scrollFormatter.maximum = 100_000
-        scrollFormatter.allowsFloats = false
-        scrollField.formatter = scrollFormatter
-        scrollField.target = self
-        scrollField.action = #selector(scrollbackChanged(_:))
-        self.scrollbackField = scrollField
-        pane.addSubview(scrollField)
-
-        let scrollUnit = NSTextField(labelWithString: "lines")
-        scrollUnit.font = .systemFont(ofSize: 13)
-        scrollUnit.textColor = .secondaryLabelColor
-        scrollUnit.translatesAutoresizingMaskIntoConstraints = false
-        pane.addSubview(scrollUnit)
-
-        // --- Badge section ---
+        // Badge colors
         let divider = NSBox()
         divider.boxType = .separator
         divider.translatesAutoresizingMaskIntoConstraints = false
@@ -374,71 +263,23 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         pane.addSubview(badgeGrid)
 
         NSLayoutConstraint.activate([
-            // Theme section
-            label.topAnchor.constraint(equalTo: pane.topAnchor, constant: 16),
-            label.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
-
             searchField.topAnchor.constraint(equalTo: pane.topAnchor, constant: 16),
-            searchField.leadingAnchor.constraint(equalTo: label.trailingAnchor, constant: 8),
+            searchField.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
             searchField.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -20),
-            searchField.widthAnchor.constraint(greaterThanOrEqualToConstant: 200),
 
             scrollView.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 10),
             scrollView.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
             scrollView.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -20),
-            scrollView.heightAnchor.constraint(equalToConstant: 260),
+            scrollView.heightAnchor.constraint(equalToConstant: 300),
 
             container.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor),
             container.trailingAnchor.constraint(equalTo: scrollView.contentView.trailingAnchor),
 
-            // Font section
-            fontDivider.topAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: 16),
-            fontDivider.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
-            fontDivider.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -20),
-
-            fontLabel.topAnchor.constraint(equalTo: fontDivider.bottomAnchor, constant: 12),
-            fontLabel.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
-
-            fontNamePopup.centerYAnchor.constraint(equalTo: fontLabel.centerYAnchor),
-            fontNamePopup.leadingAnchor.constraint(equalTo: fontLabel.trailingAnchor, constant: 8),
-            fontNamePopup.widthAnchor.constraint(equalToConstant: 200),
-
-            sizeLabel.centerYAnchor.constraint(equalTo: fontLabel.centerYAnchor),
-            sizeLabel.leadingAnchor.constraint(equalTo: fontNamePopup.trailingAnchor, constant: 16),
-
-            sizeField.centerYAnchor.constraint(equalTo: fontLabel.centerYAnchor),
-            sizeField.leadingAnchor.constraint(equalTo: sizeLabel.trailingAnchor, constant: 4),
-            sizeField.widthAnchor.constraint(equalToConstant: 40),
-
-            sizeStepper.centerYAnchor.constraint(equalTo: fontLabel.centerYAnchor),
-            sizeStepper.leadingAnchor.constraint(equalTo: sizeField.trailingAnchor, constant: 2),
-
-            previewBox.topAnchor.constraint(equalTo: fontLabel.bottomAnchor, constant: 8),
-            previewBox.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
-            previewBox.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -20),
-            previewBox.heightAnchor.constraint(equalToConstant: 60),
-
-            previewText.topAnchor.constraint(equalTo: previewBox.topAnchor, constant: 6),
-            previewText.leadingAnchor.constraint(equalTo: previewBox.leadingAnchor, constant: 8),
-            previewText.trailingAnchor.constraint(equalTo: previewBox.trailingAnchor, constant: -8),
-
-            // Scrollback section
-            scrollLabel.topAnchor.constraint(equalTo: previewBox.bottomAnchor, constant: 12),
-            scrollLabel.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
-
-            scrollField.centerYAnchor.constraint(equalTo: scrollLabel.centerYAnchor),
-            scrollField.leadingAnchor.constraint(equalTo: scrollLabel.trailingAnchor, constant: 8),
-            scrollField.widthAnchor.constraint(equalToConstant: 70),
-
-            scrollUnit.centerYAnchor.constraint(equalTo: scrollLabel.centerYAnchor),
-            scrollUnit.leadingAnchor.constraint(equalTo: scrollField.trailingAnchor, constant: 4),
-
-            // Badge section
-            divider.topAnchor.constraint(equalTo: scrollLabel.bottomAnchor, constant: 16),
+            divider.topAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: 16),
             divider.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
             divider.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -20),
 
-            badgeLabel.topAnchor.constraint(equalTo: divider.bottomAnchor, constant: 16),
+            badgeLabel.topAnchor.constraint(equalTo: divider.bottomAnchor, constant: 12),
             badgeLabel.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
 
             badgeGrid.topAnchor.constraint(equalTo: badgeLabel.bottomAnchor, constant: 8),
@@ -510,6 +351,156 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         } else {
             ThemeManager.shared.applyTheme(name: card.themeName)
         }
+    }
+
+    // MARK: - Terminal Pane
+
+    private func makeTerminalPane() -> NSView {
+        let pane = NSView()
+
+        // Font picker
+        let fontLabel = NSTextField(labelWithString: "Font:")
+        fontLabel.font = .systemFont(ofSize: 13, weight: .medium)
+        fontLabel.translatesAutoresizingMaskIntoConstraints = false
+        pane.addSubview(fontLabel)
+
+        let savedFontName = UserDefaults.standard.string(forKey: "terminalFontName") ?? "SF Mono"
+        let savedFontSize = UserDefaults.standard.double(forKey: "terminalFontSize")
+        let currentFontSize = savedFontSize > 0 ? savedFontSize : 13.0
+
+        let fontNamePopup = NSPopUpButton(frame: .zero, pullsDown: false)
+        fontNamePopup.translatesAutoresizingMaskIntoConstraints = false
+        let monoFonts = NSFontManager.shared.availableFontFamilies.filter { family in
+            guard let font = NSFont(name: family, size: 12) else { return false }
+            return font.isFixedPitch || family.localizedCaseInsensitiveContains("mono")
+                || family.localizedCaseInsensitiveContains("courier")
+                || family.localizedCaseInsensitiveContains("menlo")
+                || family.localizedCaseInsensitiveContains("consolas")
+        }
+        for family in monoFonts.sorted() { fontNamePopup.addItem(withTitle: family) }
+        if let idx = fontNamePopup.itemTitles.firstIndex(of: savedFontName) {
+            fontNamePopup.selectItem(at: idx)
+        }
+        fontNamePopup.target = self
+        fontNamePopup.action = #selector(fontSettingChanged(_:))
+        self.fontNamePopup = fontNamePopup
+        pane.addSubview(fontNamePopup)
+
+        let sizeLabel = NSTextField(labelWithString: "Size:")
+        sizeLabel.font = .systemFont(ofSize: 13, weight: .medium)
+        sizeLabel.translatesAutoresizingMaskIntoConstraints = false
+        pane.addSubview(sizeLabel)
+
+        let sizeField = NSTextField(string: String(format: "%.0f", currentFontSize))
+        sizeField.translatesAutoresizingMaskIntoConstraints = false
+        sizeField.alignment = .center
+        let formatter = NumberFormatter()
+        formatter.minimum = 8
+        formatter.maximum = 36
+        formatter.allowsFloats = false
+        sizeField.formatter = formatter
+        sizeField.target = self
+        sizeField.action = #selector(fontSettingChanged(_:))
+        self.fontSizeField = sizeField
+        pane.addSubview(sizeField)
+
+        let sizeStepper = NSStepper()
+        sizeStepper.translatesAutoresizingMaskIntoConstraints = false
+        sizeStepper.minValue = 8
+        sizeStepper.maxValue = 36
+        sizeStepper.increment = 1
+        sizeStepper.doubleValue = currentFontSize
+        sizeStepper.target = self
+        sizeStepper.action = #selector(fontSizeStepperChanged(_:))
+        self.fontSizeStepper = sizeStepper
+        pane.addSubview(sizeStepper)
+
+        // Font preview
+        let previewBox = NSBox()
+        previewBox.title = ""
+        previewBox.boxType = .custom
+        previewBox.borderType = .bezelBorder
+        previewBox.translatesAutoresizingMaskIntoConstraints = false
+        pane.addSubview(previewBox)
+
+        let previewText = NSTextField(labelWithString: "ABCDEFGHIJKLM 0123456789\nThe quick brown fox jumps over the lazy dog\n~$ claude --help")
+        previewText.maximumNumberOfLines = 3
+        previewText.font = NSFont(name: savedFontName, size: CGFloat(currentFontSize))
+            ?? NSFont.monospacedSystemFont(ofSize: CGFloat(currentFontSize), weight: .regular)
+        previewText.textColor = .labelColor
+        previewText.translatesAutoresizingMaskIntoConstraints = false
+        previewBox.addSubview(previewText)
+        self.fontPreviewLabel = previewText
+
+        // Scrollback
+        let scrollLabel = NSTextField(labelWithString: "Scrollback:")
+        scrollLabel.font = .systemFont(ofSize: 13, weight: .medium)
+        scrollLabel.translatesAutoresizingMaskIntoConstraints = false
+        pane.addSubview(scrollLabel)
+
+        let savedScrollback = UserDefaults.standard.integer(forKey: "terminalScrollback")
+        let currentScrollback = savedScrollback > 0 ? savedScrollback : TerminalSurface.defaultScrollback
+
+        let scrollField = NSTextField(string: "\(currentScrollback)")
+        scrollField.translatesAutoresizingMaskIntoConstraints = false
+        scrollField.alignment = .right
+        let scrollFormatter = NumberFormatter()
+        scrollFormatter.minimum = 100
+        scrollFormatter.maximum = 100_000
+        scrollFormatter.allowsFloats = false
+        scrollField.formatter = scrollFormatter
+        scrollField.target = self
+        scrollField.action = #selector(scrollbackChanged(_:))
+        self.scrollbackField = scrollField
+        pane.addSubview(scrollField)
+
+        let scrollUnit = NSTextField(labelWithString: "lines")
+        scrollUnit.font = .systemFont(ofSize: 13)
+        scrollUnit.textColor = .secondaryLabelColor
+        scrollUnit.translatesAutoresizingMaskIntoConstraints = false
+        pane.addSubview(scrollUnit)
+
+        NSLayoutConstraint.activate([
+            fontLabel.topAnchor.constraint(equalTo: pane.topAnchor, constant: 20),
+            fontLabel.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
+
+            fontNamePopup.centerYAnchor.constraint(equalTo: fontLabel.centerYAnchor),
+            fontNamePopup.leadingAnchor.constraint(equalTo: fontLabel.trailingAnchor, constant: 8),
+            fontNamePopup.widthAnchor.constraint(equalToConstant: 200),
+
+            sizeLabel.centerYAnchor.constraint(equalTo: fontLabel.centerYAnchor),
+            sizeLabel.leadingAnchor.constraint(equalTo: fontNamePopup.trailingAnchor, constant: 16),
+
+            sizeField.centerYAnchor.constraint(equalTo: fontLabel.centerYAnchor),
+            sizeField.leadingAnchor.constraint(equalTo: sizeLabel.trailingAnchor, constant: 4),
+            sizeField.widthAnchor.constraint(equalToConstant: 40),
+
+            sizeStepper.centerYAnchor.constraint(equalTo: fontLabel.centerYAnchor),
+            sizeStepper.leadingAnchor.constraint(equalTo: sizeField.trailingAnchor, constant: 2),
+
+            previewBox.topAnchor.constraint(equalTo: fontLabel.bottomAnchor, constant: 12),
+            previewBox.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
+            previewBox.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -20),
+            previewBox.heightAnchor.constraint(equalToConstant: 60),
+
+            previewText.topAnchor.constraint(equalTo: previewBox.topAnchor, constant: 6),
+            previewText.leadingAnchor.constraint(equalTo: previewBox.leadingAnchor, constant: 8),
+            previewText.trailingAnchor.constraint(equalTo: previewBox.trailingAnchor, constant: -8),
+
+            scrollLabel.topAnchor.constraint(equalTo: previewBox.bottomAnchor, constant: 16),
+            scrollLabel.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
+
+            scrollField.centerYAnchor.constraint(equalTo: scrollLabel.centerYAnchor),
+            scrollField.leadingAnchor.constraint(equalTo: scrollLabel.trailingAnchor, constant: 8),
+            scrollField.widthAnchor.constraint(equalToConstant: 70),
+
+            scrollUnit.centerYAnchor.constraint(equalTo: scrollLabel.centerYAnchor),
+            scrollUnit.leadingAnchor.constraint(equalTo: scrollField.trailingAnchor, constant: 4),
+
+            scrollLabel.bottomAnchor.constraint(equalTo: pane.bottomAnchor, constant: -20),
+        ])
+
+        return pane
     }
 
     // MARK: - Font Settings
@@ -774,7 +765,7 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
             UserDefaults.standard.removeObject(forKey: "badgeAnimate.\(entry.state.rawValue)")
         }
         // Refresh the pane to show default colors
-        switchToPane(.appearance)
+        switchToPane(.theme)
         if let wc = NSApp.delegate as? AppDelegate {
             wc.windowController?.rebuildSidebar()
             wc.windowController?.rebuildTabBar()
