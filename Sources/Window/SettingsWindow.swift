@@ -106,10 +106,19 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextVie
         let oldFrame = window.frame
         let contentRect = window.contentRect(forFrameRect: oldFrame)
         let chromeHeight = oldFrame.height - contentRect.height
-        var newFrame = oldFrame
-        newFrame.size.height = preferredHeight + chromeHeight
-        newFrame.size.width = 720
-        newFrame.origin.y += oldFrame.height - newFrame.height
+        let newWidth: CGFloat = 720
+        let newHeight = preferredHeight + chromeHeight
+        // Center horizontally relative to old position when changing width
+        let newX = oldFrame.origin.x + (oldFrame.width - newWidth) / 2
+        let newY = oldFrame.origin.y + oldFrame.height - newHeight
+        var newFrame = NSRect(x: newX, y: newY, width: newWidth, height: newHeight)
+
+        // Ensure the window stays on screen
+        if let screen = window.screen ?? NSScreen.main {
+            let visible = screen.visibleFrame
+            if newFrame.maxX > visible.maxX { newFrame.origin.x = visible.maxX - newFrame.width }
+            if newFrame.origin.x < visible.origin.x { newFrame.origin.x = visible.origin.x }
+        }
 
         window.setFrame(newFrame, display: true, animate: window.isVisible)
         window.contentView = newView
