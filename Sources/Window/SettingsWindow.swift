@@ -166,7 +166,6 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
             grid.topAnchor.constraint(equalTo: pane.topAnchor, constant: 20),
             grid.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 40),
             grid.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -40),
-            grid.bottomAnchor.constraint(equalTo: pane.bottomAnchor, constant: -20),
         ])
 
         return pane
@@ -279,7 +278,6 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
 
             badgeGrid.topAnchor.constraint(equalTo: badgeLabel.bottomAnchor, constant: 8),
             badgeGrid.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
-            badgeGrid.bottomAnchor.constraint(equalTo: pane.bottomAnchor, constant: -16),
         ])
 
         // Perform initial layout after the view is sized
@@ -564,7 +562,6 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
 
             resetTmuxButton.topAnchor.constraint(equalTo: tmuxHelpLabel.bottomAnchor, constant: 8),
             resetTmuxButton.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
-            resetTmuxButton.bottomAnchor.constraint(equalTo: pane.bottomAnchor, constant: -20),
         ])
 
         return pane
@@ -906,7 +903,6 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         NSLayoutConstraint.activate([
             grid.topAnchor.constraint(equalTo: pane.topAnchor, constant: 20),
             grid.centerXAnchor.constraint(equalTo: pane.centerXAnchor),
-            grid.bottomAnchor.constraint(equalTo: pane.bottomAnchor, constant: -20),
         ])
 
         return pane
@@ -962,7 +958,6 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         NSLayoutConstraint.activate([
             stack.centerXAnchor.constraint(equalTo: pane.centerXAnchor),
             stack.topAnchor.constraint(equalTo: pane.topAnchor, constant: 30),
-            stack.bottomAnchor.constraint(equalTo: pane.bottomAnchor, constant: -30),
         ])
 
         return pane
