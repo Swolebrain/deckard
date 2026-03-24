@@ -28,7 +28,7 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextVie
 
     private init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 720, height: 160),
+            contentRect: NSRect(x: 0, y: 0, width: 720, height: 600),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -93,34 +93,6 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextVie
         case .about: newView = makeAboutPane()
         }
 
-        // Resize window to fit the new pane content.
-        // Use a fixed preferred height for panes with scroll views to prevent
-        // fittingSize from expanding to the full content height (e.g., 485 theme cards).
-        let preferredHeight: CGFloat = switch pane {
-        case .theme: 580
-        case .terminal: 480
-        case .general: 160
-        case .shortcuts: 340
-        case .about: 200
-        }
-        let oldFrame = window.frame
-        let contentRect = window.contentRect(forFrameRect: oldFrame)
-        let chromeHeight = oldFrame.height - contentRect.height
-        let newWidth: CGFloat = 720
-        let newHeight = preferredHeight + chromeHeight
-        // Center horizontally relative to old position when changing width
-        let newX = oldFrame.origin.x + (oldFrame.width - newWidth) / 2
-        let newY = oldFrame.origin.y + oldFrame.height - newHeight
-        var newFrame = NSRect(x: newX, y: newY, width: newWidth, height: newHeight)
-
-        // Ensure the window stays on screen
-        if let screen = window.screen ?? NSScreen.main {
-            let visible = screen.visibleFrame
-            if newFrame.maxX > visible.maxX { newFrame.origin.x = visible.maxX - newFrame.width }
-            if newFrame.origin.x < visible.origin.x { newFrame.origin.x = visible.origin.x }
-        }
-
-        window.setFrame(newFrame, display: true, animate: window.isVisible)
         window.contentView = newView
     }
 
