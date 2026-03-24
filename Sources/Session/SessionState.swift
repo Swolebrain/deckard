@@ -14,6 +14,10 @@ struct DeckardState: Codable {
 
     // v2: project-based
     var projects: [ProjectState]?
+
+    // v3: sidebar folders
+    var sidebarFolders: [SidebarFolderState]?
+    var sidebarOrder: [SidebarOrderItem]?
 }
 
 struct TabState: Codable {
@@ -40,6 +44,50 @@ struct ProjectTabState: Codable {
     var isClaude: Bool
     var sessionId: String?
     var tmuxSessionName: String?
+}
+
+struct SidebarFolderState: Codable {
+    var id: String
+    var name: String
+    var isCollapsed: Bool
+    var projectIds: [String]
+}
+
+/// A tagged union for sidebar ordering — either a folder or an ungrouped project.
+enum SidebarOrderItem: Codable {
+    case folder(String)   // folder id
+    case project(String)  // project id
+
+    private enum CodingKeys: String, CodingKey {
+        case type, id
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .folder(let id):
+            try container.encode("folder", forKey: .type)
+            try container.encode(id, forKey: .id)
+        case .project(let id):
+            try container.encode("project", forKey: .type)
+            try container.encode(id, forKey: .id)
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(String.self, forKey: .type)
+        let id = try container.decode(String.self, forKey: .id)
+        switch type {
+        case "folder":
+            self = .folder(id)
+        case "project":
+            self = .project(id)
+        default:
+            throw DecodingError.dataCorruptedError(forKey: .type, in: container,
+                debugDescription: "Unknown sidebar order item type: \(type)")
+        }
+    }
 }
 
 /// Manages saving and loading Deckard state.

@@ -156,6 +156,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         closeItem.setShortcut(for: .closeTab)
         fileMenu.addItem(closeItem)
 
+        let newFolderItem = NSMenuItem(title: "New Sidebar Folder", action: #selector(createNewSidebarFolder), keyEquivalent: "")
+        newFolderItem.target = self
+        fileMenu.addItem(newFolderItem)
+
         let closeProjectItem = NSMenuItem(title: "Close Folder", action: #selector(closeCurrentProject), keyEquivalent: "")
         closeProjectItem.setShortcut(for: .closeFolder)
         fileMenu.addItem(closeProjectItem)
@@ -263,6 +267,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func selectTabByNumber(_ sender: NSMenuItem) {
         windowController?.selectProject(byNumber: sender.tag)
+    }
+
+    @objc private func createNewSidebarFolder() {
+        windowController?.createSidebarFolder()
     }
 
     @objc private func toggleSidebar() {

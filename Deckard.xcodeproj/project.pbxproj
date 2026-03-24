@@ -33,6 +33,10 @@
 		DD220001DD220001DD220001 /* ProcessMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD220002DD220002DD220002 /* ProcessMonitor.swift */; };
 		DD330001DD330001DD330001 /* DiagnosticLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD330002DD330002DD330002 /* DiagnosticLog.swift */; };
 		DD440001DD440001DD440001 /* CrashReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD440002DD440002DD440002 /* CrashReporter.swift */; };
+		SC000001SC000001SC000001 /* SidebarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC000002SC000002SC000002 /* SidebarController.swift */; };
+		TB000001TB000001TB000001 /* TabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB000002TB000002TB000002 /* TabBarController.swift */; };
+		SV000001SV000001SV000001 /* SidebarViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = SV000002SV000002SV000002 /* SidebarViews.swift */; };
+		TV000001TV000001TV000001 /* TabBarViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = TV000002TV000002TV000002 /* TabBarViews.swift */; };
 		AA110001AA110001AA110001 /* ThemeColorsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA110002AA110002AA110002 /* ThemeColorsTests.swift */; };
 		AA120001AA120001AA120001 /* TerminalColorSchemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA120002AA120002AA120002 /* TerminalColorSchemeTests.swift */; };
 		AA130001AA130001AA130001 /* SessionStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA130002AA130002AA130002 /* SessionStateTests.swift */; };
@@ -74,6 +78,10 @@
 		DD220002DD220002DD220002 /* ProcessMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessMonitor.swift; sourceTree = "<group>"; };
 		DD330002DD330002DD330002 /* DiagnosticLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticLog.swift; sourceTree = "<group>"; };
 		DD440002DD440002DD440002 /* CrashReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashReporter.swift; sourceTree = "<group>"; };
+		SC000002SC000002SC000002 /* SidebarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarController.swift; sourceTree = "<group>"; };
+		TB000002TB000002TB000002 /* TabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarController.swift; sourceTree = "<group>"; };
+		SV000002SV000002SV000002 /* SidebarViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViews.swift; sourceTree = "<group>"; };
+		TV000002TV000002TV000002 /* TabBarViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarViews.swift; sourceTree = "<group>"; };
 		ST000005ST000005ST000005 /* TerminalSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSurface.swift; sourceTree = "<group>"; };
 		TE000001TE000001TE000001 /* SmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeTests.swift; sourceTree = "<group>"; };
 		TE000004TE000004TE000004 /* DeckardTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeckardTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -170,6 +178,10 @@
 			isa = PBXGroup;
 			children = (
 				8391EFB62A21AFA1DA62733F /* DeckardWindowController.swift */,
+				SC000002SC000002SC000002 /* SidebarController.swift */,
+				TB000002TB000002TB000002 /* TabBarController.swift */,
+				SV000002SV000002SV000002 /* SidebarViews.swift */,
+				TV000002TV000002TV000002 /* TabBarViews.swift */,
 				4BE07F0C0F9D62925EF195F7 /* ProjectPicker.swift */,
 				DD37F7C8CC5243DCF0A1346E /* SettingsWindow.swift */,
 				TC100002TC100002TC100002 /* ThemeCardView.swift */,
@@ -363,6 +375,10 @@
 				2E4FF6C3438B5F0E73C4FA87 /* ContextMonitor.swift in Sources */,
 				7E500DC8ECF3F7D073A098A4 /* ControlSocket.swift in Sources */,
 				37FA9D946FD6ECA1DDF5898A /* DeckardWindowController.swift in Sources */,
+				SC000001SC000001SC000001 /* SidebarController.swift in Sources */,
+				TB000001TB000001TB000001 /* TabBarController.swift in Sources */,
+				SV000001SV000001SV000001 /* SidebarViews.swift in Sources */,
+				TV000001TV000001TV000001 /* TabBarViews.swift in Sources */,
 				A0FF9B9E99BC8B33FDCAB7E5 /* HookHandler.swift in Sources */,
 				70265FBBA52FB6E60AE4EFFE /* ProjectPicker.swift in Sources */,
 				2D322E22D0679FD39D688539 /* SessionState.swift in Sources */,
