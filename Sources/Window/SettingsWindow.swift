@@ -111,8 +111,8 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextVie
         newFrame.size.width = 720
         newFrame.origin.y += oldFrame.height - newFrame.height
 
-        window.contentView = newView
         window.setFrame(newFrame, display: true, animate: window.isVisible)
+        window.contentView = newView
     }
 
     // MARK: - General Pane
