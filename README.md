@@ -11,10 +11,11 @@ Run multiple sessions side by side in a single window with tabs, projects, and s
 ## Features
 
 - **Multi-tab sessions**: Open multiple Claude Code (and plain terminal) tabs per project. Switch between them with Cmd+1–9 or drag to reorder.
-- **Project sidebar**: Organize work by folder. Each project gets its own set of tabs, persisted across restarts.
+- **Project sidebar**: Each open directory gets its own set of tabs, persisted across restarts. Group related projects into collapsible sidebar folders for organization (e.g., by client).
 - **Context usage tracking**: A progress bar shows how much of Claude's context window the active session has consumed.
 - **Session state detection**: Tab badges show whether Claude is thinking, waiting for input, needs tool permission, or has errored. Terminal tabs show CPU/disk activity.
-- **Session persistence**: Claude sessions resume via `--resume`. Terminal tabs preserve full shell state (scrollback, running processes, environment) across quit/relaunch using tmux when available.
+- **Session persistence**: Claude sessions resume via `--resume`. Tab structure and working directories are preserved across restarts.
+- **tmux integration**: When tmux is installed, terminal tabs are transparently wrapped in tmux sessions. Quit and relaunch Deckard to resume exactly where you left off — full shell state, scrollback, running processes, and environment preserved. Works as a progressive enhancement; no tmux required.
 - **Terminal rendering**: Powered by [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm), a self-contained terminal emulator with VT100/xterm emulation, IME support, and mouse reporting.
 
 ## Requirements
