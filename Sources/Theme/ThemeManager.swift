@@ -85,4 +85,5 @@ class ThemeManager {
 
 extension Notification.Name {
     static let deckardThemeChanged = Notification.Name("deckardThemeChanged")
+    static let deckardVibrancyChanged = Notification.Name("deckardVibrancyChanged")
 }

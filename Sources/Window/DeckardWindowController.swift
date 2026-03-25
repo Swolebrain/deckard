@@ -152,6 +152,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
     let sidebarDropZone = SidebarDropZone()
     private let quotaView = QuotaView()
+    private let sidebarEffectView = NSVisualEffectView()
     private let sidebarWidth: CGFloat = 210
     private var sidebarInitialized = false
     private var sidebarWidthBeforeCollapse: CGFloat = 210
@@ -191,6 +192,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         setupUI()
 
         NotificationCenter.default.addObserver(self, selector: #selector(themeDidChange(_:)), name: .deckardThemeChanged, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(vibrancyDidChange), name: .deckardVibrancyChanged, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(quotaDidChange), name: QuotaMonitor.quotaDidChange, object: nil)
         // Show cached quota data immediately if available
         quotaDidChange()
@@ -260,7 +262,14 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         // Sidebar
         sidebarView.translatesAutoresizingMaskIntoConstraints = false
         sidebarView.wantsLayer = true
-        sidebarView.layer?.backgroundColor = colors.sidebarBackground.cgColor
+
+        // Vibrancy: sidebar blurs through to the desktop wallpaper
+        sidebarEffectView.translatesAutoresizingMaskIntoConstraints = false
+        sidebarEffectView.material = .sidebar
+        sidebarEffectView.blendingMode = .behindWindow
+        sidebarEffectView.state = .active
+        sidebarView.addSubview(sidebarEffectView, positioned: .below, relativeTo: nil)
+        applyVibrancySettings()
 
         // Drop zone covers the entire sidebar area below the stack
         sidebarDropZone.translatesAutoresizingMaskIntoConstraints = false
@@ -277,6 +286,11 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         sidebarView.addSubview(quotaView)
 
         NSLayoutConstraint.activate([
+            sidebarEffectView.topAnchor.constraint(equalTo: sidebarView.topAnchor),
+            sidebarEffectView.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor),
+            sidebarEffectView.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
+            sidebarEffectView.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
+
             sidebarStackView.topAnchor.constraint(equalTo: sidebarView.topAnchor),
             sidebarStackView.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
             sidebarStackView.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
@@ -1193,6 +1207,20 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
     // MARK: - Theme
 
+    @objc private func vibrancyDidChange() {
+        applyVibrancySettings()
+    }
+
+    private func applyVibrancySettings() {
+        let enabled = UserDefaults.standard.object(forKey: "sidebarVibrancy") as? Bool ?? false
+        let colors = ThemeManager.shared.currentColors
+
+        sidebarEffectView.isHidden = !enabled
+        sidebarView.layer?.backgroundColor = enabled
+            ? NSColor.clear.cgColor
+            : colors.sidebarBackground.cgColor
+    }
+
     @objc private func quotaDidChange() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -1211,8 +1239,8 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
         window?.backgroundColor = newColors.background
         window?.appearance = newColors.isDark
             ? NSAppearance(named: .darkAqua) : NSAppearance(named: .aqua)
-        sidebarView.layer?.backgroundColor = newColors.sidebarBackground.cgColor
         tabBar.layer?.backgroundColor = newColors.tabBarBackground.cgColor
+        applyVibrancySettings()
         emptyStateView?.layer?.backgroundColor = newColors.background.cgColor
         quotaView.applyTheme(colors: newColors)
         rebuildSidebar()

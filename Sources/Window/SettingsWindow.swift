@@ -28,13 +28,13 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
 
     private init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 720, height: 600),
+            contentRect: NSRect(x: 0, y: 0, width: 720, height: 840),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
-        window.contentMinSize = NSSize(width: 720, height: 600)
-        window.contentMaxSize = NSSize(width: 720, height: 600)
+        window.contentMinSize = NSSize(width: 720, height: 840)
+        window.contentMaxSize = NSSize(width: 720, height: 840)
         window.center()
 
         super.init(window: window)
@@ -171,6 +171,12 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
         return pane
     }
 
+    @objc private func vibrancyToggled(_ sender: NSButton) {
+        let enabled = sender.state == .on
+        UserDefaults.standard.set(enabled, forKey: "sidebarVibrancy")
+        NotificationCenter.default.post(name: .deckardVibrancyChanged, object: nil)
+    }
+
     // MARK: - Theme Pane
 
     private var themeCollectionScrollView: NSScrollView?
@@ -278,6 +284,34 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate {
 
             badgeGrid.topAnchor.constraint(equalTo: badgeLabel.bottomAnchor, constant: 8),
             badgeGrid.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
+        ])
+
+        // Vibrancy controls
+        let vibrancyDivider = NSBox()
+        vibrancyDivider.boxType = .separator
+        vibrancyDivider.translatesAutoresizingMaskIntoConstraints = false
+        pane.addSubview(vibrancyDivider)
+
+        let vibrancyLabel = NSTextField(labelWithString: "Sidebar Vibrancy:")
+        vibrancyLabel.font = .systemFont(ofSize: 13, weight: .medium)
+        vibrancyLabel.translatesAutoresizingMaskIntoConstraints = false
+        pane.addSubview(vibrancyLabel)
+
+        let vibrancyCheck = NSButton(checkboxWithTitle: "Translucent sidebar", target: self, action: #selector(vibrancyToggled(_:)))
+        vibrancyCheck.state = UserDefaults.standard.object(forKey: "sidebarVibrancy") as? Bool ?? false ? .on : .off
+        vibrancyCheck.translatesAutoresizingMaskIntoConstraints = false
+        pane.addSubview(vibrancyCheck)
+
+        NSLayoutConstraint.activate([
+            vibrancyDivider.topAnchor.constraint(equalTo: badgeGrid.bottomAnchor, constant: 16),
+            vibrancyDivider.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
+            vibrancyDivider.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -20),
+
+            vibrancyLabel.topAnchor.constraint(equalTo: vibrancyDivider.bottomAnchor, constant: 12),
+            vibrancyLabel.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
+
+            vibrancyCheck.topAnchor.constraint(equalTo: vibrancyLabel.bottomAnchor, constant: 8),
+            vibrancyCheck.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 20),
         ])
 
         // Perform initial layout after the view is sized
