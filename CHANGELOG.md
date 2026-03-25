@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/gi11es/deckard/compare/v0.9.0...v0.10.0) (2026-03-25)
+
+
+### Features
+
+* add quota usage widget to sidebar ([9a5843a](https://github.com/gi11es/deckard/commit/9a5843a75ff7c235ef7a167bf9df4605ed5ab4e4))
+
+
+### Bug Fixes
+
+* resolve SwiftLint violations in quota widget ([e4c4d28](https://github.com/gi11es/deckard/commit/e4c4d28e66ba2400f564ab1ac425cb67b3472fcc))
+* tmux copy-on-drag with pbcopy and taller options field ([9d732b0](https://github.com/gi11es/deckard/commit/9d732b08b5a80c9dbd73d07186ee71317762f0f5))
+
 ## [0.9.0](https://github.com/gi11es/deckard/compare/v0.8.0...v0.9.0) (2026-03-25)
 
 
