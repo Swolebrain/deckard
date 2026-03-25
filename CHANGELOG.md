@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.9.0](https://github.com/gi11es/deckard/compare/v0.8.0...v0.9.0) (2026-03-25)
+
+
+### Features
+
+* editable tmux options in Settings &gt; Terminal ([481d601](https://github.com/gi11es/deckard/commit/481d601021fea2decdf9f22dc143a987dfb51e07))
+* split status indicators into two side-by-side tables ([fcc002d](https://github.com/gi11es/deckard/commit/fcc002dd13b86e77322b6cdd31e46a277f03b736))
+
+
+### Bug Fixes
+
+* avoid duplicate tab numbers when creating new tabs ([b529d78](https://github.com/gi11es/deckard/commit/b529d78ccaeab1d4ad5400592fafe6ef1c419b64))
+* copy text selection to clipboard in tmux terminals ([bd08cdc](https://github.com/gi11es/deckard/commit/bd08cdc448e0a41cb38a3689186ab08bc032efe7))
+* dragging only item from folder into folder above stays in place ([4dc24cb](https://github.com/gi11es/deckard/commit/4dc24cbf0132ffcb7b9c5f918322224542a678ea))
+* emoji and wide character rendering in tmux terminals ([21d252e](https://github.com/gi11es/deckard/commit/21d252e0f605ea5606534c8c492c7b500b762356))
+* emoji and wide character rendering in tmux terminals ([3b0c019](https://github.com/gi11es/deckard/commit/3b0c0192d7c0c84651f30da37be6332e7a49634a))
+* exit tmux copy mode when switching tabs ([2f34692](https://github.com/gi11es/deckard/commit/2f346921787537ae7c93740d2a25740fa0db9460))
+* fixed settings window size (720x600) for all panes ([d3a114a](https://github.com/gi11es/deckard/commit/d3a114ae3524e4ba0a12d7fb2e78cc13020cd43f))
+* keep text selection visible after mouse drag in tmux ([bb5a4c7](https://github.com/gi11es/deckard/commit/bb5a4c7638a80f12084db6ea9d83c987267efb50))
+* keep text selection visible after mouse drag in tmux ([57e894d](https://github.com/gi11es/deckard/commit/57e894d6b254614f69354e2709eeacba2fbaebf6))
+* lock settings window to 720x600 with contentMinSize/contentMaxSize ([b37a22e](https://github.com/gi11es/deckard/commit/b37a22efac686cfc7457a1aa6f77cc7cf2b00473))
+* prevent settings window from shrinking when switching panes ([682feb9](https://github.com/gi11es/deckard/commit/682feb96097c677737407df928a02a245b88a811))
+* replace NSTextView with NSTextField for tmux options ([0531045](https://github.com/gi11es/deckard/commit/05310453f06047725c0d6119d6b321345ad19477))
+* restart terminal shell on process exit instead of removing the tab ([ffbb343](https://github.com/gi11es/deckard/commit/ffbb343b026736deb6a676a11cf4315444debf4b))
+* revert custom tmux clipboard/selection bindings, keep emoji fixes ([25d4fc7](https://github.com/gi11es/deckard/commit/25d4fc7fb3b7f2115910fb538ea44e0caf09941f))
+* settings panes lay out top-to-bottom, no vertical stretching ([b34d0c9](https://github.com/gi11es/deckard/commit/b34d0c96b12a2d8ee5ba40b2c58b8a34d3ef26c0))
+* settings window size when switching panes ([79ff640](https://github.com/gi11es/deckard/commit/79ff640001356f7832cdadf4f0c4405ae5ad6828))
+* settings window stays on screen when switching panes ([523b442](https://github.com/gi11es/deckard/commit/523b442be6d012aa8541e97cecd2cf06e1ffed24))
+
 ## [0.8.0](https://github.com/gi11es/deckard/compare/v0.7.1...v0.8.0) (2026-03-24)
 
 
