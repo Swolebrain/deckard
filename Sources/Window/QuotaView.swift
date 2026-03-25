@@ -272,16 +272,19 @@ class QuotaView: NSView {
             sevenDayBar.isHidden = false
             sevenDayReset.isHidden = false
 
+            // If the reset time has passed, show 0% (quota has reset)
+            let fivePct = hasReset(snap.fiveHourResetsAt) ? 0 : snap.fiveHourUsed
             updateBar(
-                percent: snap.fiveHourUsed,
+                percent: fivePct,
                 label: fiveHourPercent,
                 fill: fiveHourFill,
                 widthConstraint: &fiveHourFillWidth,
                 bar: fiveHourBar)
             fiveHourReset.stringValue = resetString(for: snap.fiveHourResetsAt)
 
+            let sevenPct = hasReset(snap.sevenDayResetsAt) ? 0 : snap.sevenDayUsed
             updateBar(
-                percent: snap.sevenDayUsed,
+                percent: sevenPct,
                 label: sevenDayPercent,
                 fill: sevenDayFill,
                 widthConstraint: &sevenDayFillWidth,
@@ -402,9 +405,14 @@ class QuotaView: NSView {
         }
     }
 
+    private func hasReset(_ date: Date?) -> Bool {
+        guard let date = date else { return false }
+        return date <= Date()
+    }
+
     private func resetString(for date: Date?) -> String {
         guard let date = date else { return "" }
-        if date <= Date() { return "resetting..." }
+        if date <= Date() { return "" }
         return "resets \(resetFormatter.localizedString(for: date, relativeTo: Date()))"
     }
 
