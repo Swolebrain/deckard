@@ -13,6 +13,7 @@
 		AABB0001AABB0001AABB0001 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = AABB0002AABB0002AABB0002 /* KeyboardShortcuts */; };
 		FF110001FF110001FF110001 /* Fuse in Frameworks */ = {isa = PBXBuildFile; productRef = FF110002FF110002FF110002 /* Fuse */; };
 		ST000001ST000001ST000001 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = ST000002ST000002ST000002 /* SwiftTerm */; };
+		SP000001SP000001SP000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = SP000002SP000002SP000002 /* Sparkle */; };
 		ST000004ST000004ST000004 /* TerminalSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST000005ST000005ST000005 /* TerminalSurface.swift */; };
 		2D322E22D0679FD39D688539 /* SessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BE2AA0719D32ACCD1549184 /* SessionState.swift */; };
 		2E4FF6C3438B5F0E73C4FA87 /* ContextMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5FD7F070DDB4216278EFDE6 /* ContextMonitor.swift */; };
@@ -117,6 +118,7 @@
 				AABB0001AABB0001AABB0001 /* KeyboardShortcuts in Frameworks */,
 				FF110001FF110001FF110001 /* Fuse in Frameworks */,
 				ST000001ST000001ST000001 /* SwiftTerm in Frameworks */,
+				SP000001SP000001SP000001 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -282,6 +284,7 @@
 				AABB0002AABB0002AABB0002 /* KeyboardShortcuts */,
 				FF110002FF110002FF110002 /* Fuse */,
 				ST000002ST000002ST000002 /* SwiftTerm */,
+				SP000002SP000002SP000002 /* Sparkle */,
 			);
 			productName = Deckard;
 			productReference = A32278396B92132B3CE7A5A4 /* Deckard.app */;
@@ -327,6 +330,7 @@
 				AABB0003AABB0003AABB0003 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 				FF110003FF110003FF110003 /* XCRemoteSwiftPackageReference "fuse-swift" */,
 				ST000003ST000003ST000003 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+				SP000003SP000003SP000003 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
@@ -516,7 +520,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Resources/Deckard.entitlements;
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = TATY79TCRY;
+				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -597,7 +604,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Resources/Deckard.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -706,6 +716,14 @@
 				branch = main;
 			};
 		};
+		SP000003SP000003SP000003 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -724,6 +742,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = ST000003ST000003ST000003 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
 			productName = SwiftTerm;
+		};
+		SP000002SP000002SP000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SP000003SP000003SP000003 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

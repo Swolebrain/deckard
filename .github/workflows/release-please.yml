@@ -74,16 +74,33 @@ jobs:
           echo "$CERTIFICATE_P12" | base64 --decode > $RUNNER_TEMP/certificate.p12
           security import $RUNNER_TEMP/certificate.p12 -P "$CERTIFICATE_PASSWORD" \
             -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
 
       - name: Codesign app
         env:
           DEVELOPER_ID_IDENTITY: ${{ secrets.DEVELOPER_ID_IDENTITY }}
         run: |
+          APP="build/Build/Products/Release/Deckard.app"
           IDENTITY="${DEVELOPER_ID_IDENTITY:-"-"}"
-          codesign -s "$IDENTITY" --force --deep \
-            --options runtime \
-            build/Build/Products/Release/Deckard.app
+
+          # Sign embedded frameworks and helpers individually first
+          find "$APP/Contents/Frameworks" -type f -perm +111 -o -name "*.dylib" -o -name "*.framework" 2>/dev/null | while read -r item; do
+            codesign -s "$IDENTITY" --force --options runtime --timestamp "$item" || true
+          done
+
+          # Sign any bundled binaries
+          find "$APP/Contents/Resources/bin" -type f -perm +111 2>/dev/null | while read -r item; do
+            codesign -s "$IDENTITY" --force --options runtime --timestamp "$item" || true
+          done
+
+          # Sign the main app bundle
+          codesign -s "$IDENTITY" --force --options runtime --timestamp \
+            --entitlements Resources/Deckard.entitlements \
+            "$APP"
+
+          # Verify
+          codesign --verify --deep --strict "$APP"
 
       - name: Create DMG
         run: |
@@ -97,6 +114,14 @@ jobs:
             --app-drop-link 450 190 \
             "Deckard-${{ steps.version.outputs.version }}.dmg" \
             build/Build/Products/Release/Deckard.app
+
+      - name: Codesign DMG
+        env:
+          DEVELOPER_ID_IDENTITY: ${{ secrets.DEVELOPER_ID_IDENTITY }}
+        run: |
+          IDENTITY="${DEVELOPER_ID_IDENTITY:-"-"}"
+          codesign -s "$IDENTITY" --force --timestamp \
+            "Deckard-${{ steps.version.outputs.version }}.dmg"
 
       - name: Notarize DMG
         if: env.APPLE_ID != ''
@@ -112,7 +137,66 @@ jobs:
             --wait
           xcrun stapler staple "Deckard-${{ steps.version.outputs.version }}.dmg"
 
-      - name: Upload DMG to release
+      - name: Generate Sparkle appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DMG="Deckard-${VERSION}.dmg"
+          DMG_SIZE=$(stat -f%z "$DMG")
+          DMG_URL="https://github.com/gi11es/deckard/releases/download/v${VERSION}/${DMG}"
+
+          # Get Sparkle's sign_update tool from the resolved SPM package
+          SPARKLE_PATH=$(find build/SourcePackages/artifacts -name "Sparkle.framework" -path "*/macos*" 2>/dev/null | head -1)
+          SIGN_UPDATE=""
+          if [ -n "$SPARKLE_PATH" ]; then
+            SIGN_UPDATE="$(dirname "$SPARKLE_PATH")/sign_update"
+          fi
+
+          # Fall back to checking other common locations
+          if [ ! -x "$SIGN_UPDATE" ]; then
+            SIGN_UPDATE=$(find build -name "sign_update" -type f 2>/dev/null | head -1)
+          fi
+
+          # Generate EdDSA signature if we have the key and tool
+          SIGNATURE=""
+          if [ -n "$SPARKLE_PRIVATE_KEY" ] && [ -x "$SIGN_UPDATE" ]; then
+            SIGNATURE=$("$SIGN_UPDATE" "$DMG" --ed-key-file <(echo "$SPARKLE_PRIVATE_KEY") 2>/dev/null || true)
+          fi
+
+          # Build signature attribute
+          SIG_ATTR=""
+          if [ -n "$SIGNATURE" ]; then
+            SIG_ATTR="sparkle:edSignature=\"${SIGNATURE}\""
+          fi
+
+          cat > appcast.xml << APPCAST_EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+            <channel>
+              <title>Deckard</title>
+              <link>https://github.com/gi11es/deckard/releases</link>
+              <language>en</language>
+              <item>
+                <title>Version ${VERSION}</title>
+                <link>https://github.com/gi11es/deckard/releases/tag/v${VERSION}</link>
+                <sparkle:version>${VERSION}</sparkle:version>
+                <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+                <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+                <enclosure url="${DMG_URL}" length="${DMG_SIZE}" type="application/octet-stream" ${SIG_ATTR} />
+              </item>
+            </channel>
+          </rss>
+          APPCAST_EOF
+
+          # Remove leading whitespace from heredoc indentation
+          sed -i '' 's/^          //' appcast.xml
+
+      - name: Upload DMG and appcast to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ env.TAG }}" Deckard-*.dmg --clobber
+        run: |
+          gh release upload "${{ env.TAG }}" \
+            "Deckard-${{ steps.version.outputs.version }}.dmg" \
+            appcast.xml \
+            --clobber

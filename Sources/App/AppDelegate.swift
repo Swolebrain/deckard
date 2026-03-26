@@ -1,11 +1,13 @@
 import AppKit
 import KeyboardShortcuts
+import Sparkle
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     static var shared: AppDelegate?
 
     var windowController: DeckardWindowController?
     private let hookHandler = HookHandler()
+    private let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
 
     /// True when launched as a test host by xctest.
     static var isRunningTests: Bool {
@@ -128,6 +130,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: "")
         settingsItem.setShortcut(for: .settings)
         appMenu.addItem(settingsItem)
+        let checkForUpdatesItem = NSMenuItem(title: "Check for Updates...", action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
+        checkForUpdatesItem.target = updaterController
+        appMenu.addItem(checkForUpdatesItem)
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit Deckard", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu

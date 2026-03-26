@@ -25,9 +25,9 @@
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>SUFeedURL</key>
-	<string>https://deckard-app.github.io/releases/appcast.xml</string>
+	<string>https://github.com/gi11es/deckard/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string></string>
+	<string>v0PhN0MJ3zWoKhQpY+dbvL7sX8nH1XehiL4w+Do4Jog=</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 </dict>
