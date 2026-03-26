@@ -82,6 +82,12 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextFie
         switchToPane(pane)
     }
 
+    func showAboutPane() {
+        switchToPane(.about)
+        window?.toolbar?.selectedItemIdentifier = Pane.about.toolbarItemIdentifier
+        showWindow(nil)
+    }
+
     private func switchToPane(_ pane: Pane) {
         guard let window = window else { return }
 
@@ -975,7 +981,8 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextFie
         stack.addArrangedSubview(nameLabel)
 
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
-        let versionLabel = NSTextField(labelWithString: "Version \(version)")
+        let isDev = Bundle.main.bundleIdentifier?.hasSuffix(".dev") == true
+        let versionLabel = NSTextField(labelWithString: "Version \(version)\(isDev ? " (dev)" : "")")
         versionLabel.font = .systemFont(ofSize: 12)
         versionLabel.textColor = .secondaryLabelColor
         stack.addArrangedSubview(versionLabel)

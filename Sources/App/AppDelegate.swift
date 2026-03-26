@@ -117,6 +117,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowController?.closeCurrentTab()
     }
 
+    @objc private func showAbout() {
+        SettingsWindowController.shared.showAboutPane()
+    }
+
     // MARK: - Menu
 
     @MainActor private func setupMainMenu() {
@@ -125,7 +129,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // App menu
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About Deckard", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "About Deckard", action: #selector(showAbout), keyEquivalent: "")
         appMenu.addItem(.separator())
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: "")
         settingsItem.setShortcut(for: .settings)
