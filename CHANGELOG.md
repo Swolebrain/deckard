@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.4](https://github.com/gi11es/deckard/compare/v0.11.3...v0.11.4) (2026-03-26)
+
+
+### Bug Fixes
+
+* add --repo flag to gh release edit in release-please job ([7699764](https://github.com/gi11es/deckard/commit/7699764e5a67e171efebd3cbc894a35fb6669f84))
+
 ## [0.11.3](https://github.com/gi11es/deckard/compare/v0.11.2...v0.11.3) (2026-03-26)
 
 
