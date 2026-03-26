@@ -617,7 +617,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.deckard.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.deckard.app.dev;
 				PRODUCT_NAME = Deckard;
 				SDKROOT = macosx;
 				SWIFT_OBJC_BRIDGING_HEADER = "Sources/App/Deckard-Bridging-Header.h";
