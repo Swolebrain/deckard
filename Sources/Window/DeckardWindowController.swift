@@ -1091,6 +1091,15 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
 
         isRestoring = true
 
+        // Pre-flight: touch each unique project directory to trigger a single
+        // TCC prompt per protected folder category (Documents, Desktop, etc.)
+        // before mass-creating tabs.  Without this, each forkpty queues its
+        // own TCC request and the user sees one dialog per tab.
+        let uniquePaths = Set(projectStates.map(\.path))
+        for path in uniquePaths {
+            _ = FileManager.default.isReadableFile(atPath: path)
+        }
+
         let selectedIdx = min(max(state.selectedTabIndex, 0), projectStates.count - 1)
 
         // Phase 1: Create the active project's active tab immediately so the user
