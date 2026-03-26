@@ -4,7 +4,19 @@ A terminal built for [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 
 Run multiple sessions side by side in a single window with tabs, projects, and session persistence. Built with Swift and AppKit. Terminal rendering powered by [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm).
 
-[![Download for macOS](https://img.shields.io/static/v1?label=Download+for+macOS&message=v0.10.0&color=black&style=for-the-badge&logo=apple&logoColor=white)](https://github.com/gi11es/deckard/releases/latest) <!-- x-release-please-version -->
+<p align="center">
+  <a href="https://github.com/gi11es/deckard/releases/latest/download/Deckard.dmg">
+    <img alt="Download for macOS" src="https://img.shields.io/badge/-Download_for_macOS-000000?style=for-the-badge&logo=apple&logoColor=white" height="48">
+  </a>
+  <br><br>
+  <a href="https://github.com/gi11es/deckard/releases">
+    <img alt="Version" src="https://img.shields.io/github/v/release/gi11es/deckard?style=flat-square&label=latest&color=blue">
+  </a>
+  <img alt="Platform" src="https://img.shields.io/badge/macOS_14+-grey?style=flat-square">
+  <a href="https://github.com/gi11es/deckard/releases">
+    <img alt="Downloads" src="https://img.shields.io/github/downloads/gi11es/deckard/total?style=flat-square&label=downloads&color=brightgreen">
+  </a>
+</p>
 
 ![Deckard screenshot](screenshot.jpg)
 

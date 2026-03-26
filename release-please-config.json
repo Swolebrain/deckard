@@ -4,8 +4,7 @@
       "release-type": "simple",
       "bump-minor-pre-major": true,
       "extra-files": [
-        "Resources/Info.plist",
-        "README.md"
+        "Resources/Info.plist"
       ]
     }
   }

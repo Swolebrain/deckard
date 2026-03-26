@@ -196,7 +196,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Upload a stable-named DMG so /releases/latest/download/Deckard.dmg always works
+          cp "Deckard-${{ steps.version.outputs.version }}.dmg" Deckard.dmg
           gh release upload "${{ env.TAG }}" \
             "Deckard-${{ steps.version.outputs.version }}.dmg" \
+            Deckard.dmg \
             appcast.xml \
             --clobber
