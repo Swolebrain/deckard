@@ -206,3 +206,8 @@ jobs:
             Deckard.dmg \
             appcast.xml \
             --clobber
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ env.TAG }}" --draft=false
