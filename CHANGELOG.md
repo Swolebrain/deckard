@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.0](https://github.com/gi11es/deckard/compare/v0.12.0...v0.13.0) (2026-03-26)
+
+
+### Features
+
+* show dev indicator in about screen and open settings about pane ([06bc31f](https://github.com/gi11es/deckard/commit/06bc31fa9e59af55b37e8353c8e2dd519e81c61b))
+
+
+### Bug Fixes
+
+* use separate bundle ID for debug builds ([7a60fe2](https://github.com/gi11es/deckard/commit/7a60fe24d075e776553cba52c2819823ca142124))
+
 ## [0.12.0](https://github.com/gi11es/deckard/compare/v0.11.4...v0.12.0) (2026-03-26)
 
 
