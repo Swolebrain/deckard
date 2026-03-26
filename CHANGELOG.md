@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.12.0](https://github.com/gi11es/deckard/compare/v0.11.4...v0.12.0) (2026-03-26)
+
+
+### Features
+
+* improve tmux default options ([2e323fb](https://github.com/gi11es/deckard/commit/2e323fba195c4c29368c13f0d06f7aa492c63ba1))
+* show quota sparkline and token rate on non-Claude tabs ([f75ed61](https://github.com/gi11es/deckard/commit/f75ed618e9a70851042ed16d606bd9997debe811))
+
+
+### Bug Fixes
+
+* pre-flight TCC check to avoid repeated Documents access prompts ([2c0f94a](https://github.com/gi11es/deckard/commit/2c0f94a6116edc37f141543a163c3e9d72e28f76))
+
 ## [0.11.4](https://github.com/gi11es/deckard/compare/v0.11.3...v0.11.4) (2026-03-26)
 
 
