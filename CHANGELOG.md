@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.11.1](https://github.com/gi11es/deckard/compare/v0.11.0...v0.11.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* add TCC usage descriptions to prevent repeated file access prompts ([84d97aa](https://github.com/gi11es/deckard/commit/84d97aa69cb7897e8743ba8405f515fcd4ce81f0))
+* make sidebar folder chevron clicks reliable ([4c489e8](https://github.com/gi11es/deckard/commit/4c489e8c79f49f2b449c825822387f30e10d9317))
+* prevent sidebar rebuild from stealing focus during inline rename ([bff13dd](https://github.com/gi11es/deckard/commit/bff13ddb0c59dc0dc124df88754463296da1282a))
+* skip Xcode signing during CI build, codesign in post-build step ([5ec315a](https://github.com/gi11es/deckard/commit/5ec315aa3b9c3947effcd2d5a2cafa704c8dfedf))
+
 ## [0.11.0](https://github.com/gi11es/deckard/compare/v0.10.0...v0.11.0) (2026-03-26)
 
 
