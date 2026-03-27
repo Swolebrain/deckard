@@ -53,6 +53,14 @@ class ProcessMonitor {
     /// are handled by the consecutive-poll requirement in the window controller.
     private let cpuThreshold: UInt64 = 800
 
+    /// Persistent shell for querying CPU time of root-owned processes via `ps`.
+    /// proc_pidinfo fails with EPERM on setuid-root binaries (top, sudo, etc.),
+    /// so we fall back to `ps -o cputime=`. A persistent shell (~2ms/query) avoids
+    /// the ~66ms overhead of spawning a new Process per poll.
+    private var psShell: Process?
+    private var psStdin: FileHandle?
+    private var psStdout: FileHandle?
+
     // MARK: - Public API
 
     /// Poll all tabs. Returns surface UUID → activity info for each terminal tab.
@@ -137,8 +145,10 @@ class ProcessMonitor {
         // Find the foreground process group leader (stable, unlike leaf selection)
         let fgPid = termFgPgid
 
-        // Get CPU time and disk I/O
-        guard let cpuTime = getCpuTime(pid: fgPid) else { return ActivityInfo() }
+        // Get CPU time and disk I/O (fall back to ps for root-owned processes)
+        guard let cpuTime = getCpuTime(pid: fgPid) ?? getCpuTimeViaPs(pid: fgPid) else {
+            return ActivityInfo()
+        }
         let diskBytes = getDiskBytes(pid: fgPid) ?? 0
 
         // First time seeing this foreground process — just set baseline, don't pulse
@@ -200,6 +210,77 @@ class ProcessMonitor {
         let ret = proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &taskInfo, Int32(size))
         guard ret == size else { return nil }
         return taskInfo.pti_total_user + taskInfo.pti_total_system
+    }
+
+    /// Fallback for root-owned processes where proc_pidinfo fails with EPERM.
+    /// Uses a persistent `/bin/sh` to run `ps -o cputime=` (~2ms vs ~66ms per spawn).
+    /// Parses output (format: `M:SS.cc`) into nanoseconds.
+    private func getCpuTimeViaPs(pid: pid_t) -> UInt64? {
+        let (stdin, stdout) = ensurePsShell()
+        guard let stdin, let stdout else { return nil }
+
+        let sentinel = "__DONE_\(pid)__"
+        let cmd = "ps -o cputime= -p \(pid); echo \(sentinel)\n"
+        guard let cmdData = cmd.data(using: .utf8) else { return nil }
+        do { try stdin.write(contentsOf: cmdData) } catch { resetPsShell(); return nil }
+
+        // Read until sentinel line appears
+        var accumulated = Data()
+        let sentinelData = sentinel.data(using: .utf8)!
+        let deadline = Date().addingTimeInterval(0.5)
+        while Date() < deadline {
+            let chunk = stdout.availableData
+            if chunk.isEmpty { usleep(200); continue }
+            accumulated.append(chunk)
+            if accumulated.range(of: sentinelData) != nil { break }
+        }
+
+        guard let raw = String(data: accumulated, encoding: .utf8) else { return nil }
+        // Extract the cputime line (everything before the sentinel)
+        let lines = raw.components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("__DONE_") }
+        guard let str = lines.first else { return nil }
+
+        return parseCpuTime(str)
+    }
+
+    /// Parse ps cputime format "M:SS.cc" or "H:MM:SS.cc" into nanoseconds.
+    private func parseCpuTime(_ str: String) -> UInt64? {
+        let parts = str.split(separator: ":")
+        guard parts.count >= 2, let secPart = parts.last else { return nil }
+        let minutes: Double
+        if parts.count == 3, let h = Double(parts[0]), let m = Double(parts[1]) {
+            minutes = h * 60 + m
+        } else {
+            minutes = Double(parts[0]) ?? 0
+        }
+        guard let seconds = Double(secPart) else { return nil }
+        return UInt64((minutes * 60 + seconds) * 1_000_000_000)
+    }
+
+    private func ensurePsShell() -> (stdin: FileHandle?, stdout: FileHandle?) {
+        if let shell = psShell, shell.isRunning { return (psStdin, psStdout) }
+        resetPsShell()
+        let shell = Process()
+        shell.executableURL = URL(fileURLWithPath: "/bin/sh")
+        let inPipe = Pipe()
+        let outPipe = Pipe()
+        shell.standardInput = inPipe
+        shell.standardOutput = outPipe
+        shell.standardError = FileHandle.nullDevice
+        do { try shell.run() } catch { return (nil, nil) }
+        psShell = shell
+        psStdin = inPipe.fileHandleForWriting
+        psStdout = outPipe.fileHandleForReading
+        return (psStdin, psStdout)
+    }
+
+    private func resetPsShell() {
+        psShell?.terminate()
+        psShell = nil
+        psStdin = nil
+        psStdout = nil
     }
 
     private func getDiskBytes(pid: pid_t) -> UInt64? {
