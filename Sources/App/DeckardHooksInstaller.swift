@@ -40,13 +40,20 @@ enum DeckardHooksInstaller {
         """
 
     /// StatusLine script — receives the full /status JSON on stdin (which includes
-    /// rate_limits), extracts the quota data, and sends it to Deckard's control socket.
-    /// Its stdout is ignored (empty) so it doesn't affect Claude Code's status line.
+    /// rate_limits), extracts the quota data, sends it to Deckard's control socket,
+    /// then delegates to the user's original statusline command (if any).
     private static let statusLineScript = """
         #!/bin/sh
-        [ -z "$DECKARD_SOCKET_PATH" ] && exit 0
-        _PY=$(mktemp)
-        cat > "$_PY" << 'PYEOF'
+        # Deckard statusline wrapper — extracts quota data for Deckard,
+        # then delegates to the user's original statusline command (if any).
+
+        # Read stdin into a variable (the /status JSON from Claude Code)
+        INPUT=$(cat)
+
+        # --- Deckard quota extraction (silent no-op if Deckard isn't running) ---
+        if [ -n "$DECKARD_SOCKET_PATH" ]; then
+            _PY=$(mktemp)
+            cat > "$_PY" << 'PYEOF'
         import json,sys,socket,os
         try:
             d=json.loads(sys.stdin.read());rl=d.get("rate_limits",{})
@@ -67,8 +74,19 @@ enum DeckardHooksInstaller {
             sock.close()
         except:pass
         PYEOF
-        python3 "$_PY"
-        rm -f "$_PY"
+            printf '%s' "$INPUT" | python3 "$_PY"
+            rm -f "$_PY"
+        fi
+
+        # --- Delegate to user's original statusline (if saved) ---
+        ORIG_CFG="$HOME/.deckard/original-statusline.json"
+        if [ -f "$ORIG_CFG" ]; then
+            ORIG_CMD=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('command',''))" "$ORIG_CFG" 2>/dev/null)
+            if [ -n "$ORIG_CMD" ]; then
+                printf '%s' "$INPUT" | eval "$ORIG_CMD"
+                exit $?
+            fi
+        fi
         """
 
     private static let hookScriptPath: String = {
@@ -81,6 +99,14 @@ enum DeckardHooksInstaller {
 
     private static let settingsPath: String = {
         NSHomeDirectory() + "/.claude/settings.json"
+    }()
+
+    private static let originalStatusLinePath: String = {
+        NSHomeDirectory() + "/.deckard/original-statusline.json"
+    }()
+
+    private static let hooksDirPath: String = {
+        NSHomeDirectory() + "/.deckard/hooks"
     }()
 
     private static let hookEvents: [(key: String, arg: String)] = [
@@ -99,30 +125,44 @@ enum DeckardHooksInstaller {
         mergeHooksIntoSettings()
     }
 
-    private static func installHookScript() {
-        let dir = (hookScriptPath as NSString).deletingLastPathComponent
+    static func installHookScript(
+        hookScriptPath: String? = nil,
+        statusLineScriptPath: String? = nil
+    ) {
+        let effectiveHookPath = hookScriptPath ?? Self.hookScriptPath
+        let effectiveStatusLinePath = statusLineScriptPath ?? Self.statusLineScriptPath
+
+        let dir = (effectiveHookPath as NSString).deletingLastPathComponent
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
 
+        // Also ensure statusline script dir exists (may differ from hook dir)
+        let statusLineDir = (effectiveStatusLinePath as NSString).deletingLastPathComponent
+        if statusLineDir != dir {
+            try? FileManager.default.createDirectory(atPath: statusLineDir, withIntermediateDirectories: true)
+        }
+
         // Always overwrite to keep the scripts up to date.
-        for (script, path) in [(hookScript, hookScriptPath), (statusLineScript, statusLineScriptPath)] {
+        for (script, path) in [(hookScript, effectiveHookPath), (statusLineScript, effectiveStatusLinePath)] {
             try? script.write(toFile: path, atomically: true, encoding: .utf8)
             try? FileManager.default.setAttributes(
                 [.posixPermissions: 0o755], ofItemAtPath: path)
         }
     }
 
-    private static func mergeHooksIntoSettings() {
+    static func mergeHooksIntoSettings(settingsPath: String? = nil, originalStatusLinePath: String? = nil) {
+        let effectiveSettingsPath = settingsPath ?? Self.settingsPath
+        let effectiveOriginalPath = originalStatusLinePath ?? Self.originalStatusLinePath
         let fm = FileManager.default
 
         // Ensure ~/.claude/ exists
-        let claudeDir = NSHomeDirectory() + "/.claude"
+        let claudeDir = (effectiveSettingsPath as NSString).deletingLastPathComponent
         if !fm.fileExists(atPath: claudeDir) {
             try? fm.createDirectory(atPath: claudeDir, withIntermediateDirectories: true)
         }
 
         // Read existing settings (or start fresh)
         var settings: [String: Any] = [:]
-        if let data = fm.contents(atPath: settingsPath),
+        if let data = fm.contents(atPath: effectiveSettingsPath),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             settings = json
         }
@@ -160,6 +200,13 @@ enum DeckardHooksInstaller {
 
         settings["hooks"] = hooks
 
+        // Save original statusLine if it's not ours
+        if let statusLine = settings["statusLine"] as? [String: Any],
+           let cmd = statusLine["command"] as? String,
+           !cmd.contains(".deckard/hooks/") {
+            saveOriginalStatusLine(statusLine, to: effectiveOriginalPath)
+        }
+
         // Configure statusLine command to receive rate_limits from Claude Code.
         // The statusLine receives the full /status JSON on stdin (which includes
         // rate_limits) — unlike regular hooks which only get event-specific data.
@@ -173,7 +220,80 @@ enum DeckardHooksInstaller {
             withJSONObject: settings,
             options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         ) {
-            try? data.write(to: URL(fileURLWithPath: settingsPath))
+            try? data.write(to: URL(fileURLWithPath: effectiveSettingsPath))
+        }
+    }
+
+    /// Remove all Deckard hooks from Claude Code settings and restore the original statusLine.
+    /// Parameters are injectable for testing.
+    static func uninstall(
+        settingsPath: String? = nil,
+        originalStatusLinePath: String? = nil,
+        hooksDirPath: String? = nil
+    ) {
+        let effectiveSettingsPath = settingsPath ?? Self.settingsPath
+        let effectiveOriginalPath = originalStatusLinePath ?? Self.originalStatusLinePath
+        let effectiveHooksDir = hooksDirPath ?? Self.hooksDirPath
+        let fm = FileManager.default
+
+        // Read current settings
+        guard let data = fm.contents(atPath: effectiveSettingsPath),
+              var settings = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return
+        }
+
+        // Restore or remove statusLine
+        if let origData = fm.contents(atPath: effectiveOriginalPath),
+           let original = try? JSONSerialization.jsonObject(with: origData) as? [String: Any] {
+            settings["statusLine"] = original
+        } else {
+            settings.removeValue(forKey: "statusLine")
+        }
+
+        // Remove Deckard hook entries from all events, preserving non-Deckard hooks
+        if var hooks = settings["hooks"] as? [String: Any] {
+            for (eventName, value) in hooks {
+                guard var entries = value as? [[String: Any]] else { continue }
+                entries.removeAll { entry in
+                    guard let entryHooks = entry["hooks"] as? [[String: Any]] else { return false }
+                    return entryHooks.contains { hook in
+                        (hook["command"] as? String)?.contains(".deckard/hooks/") == true
+                    }
+                }
+                if entries.isEmpty {
+                    hooks.removeValue(forKey: eventName)
+                } else {
+                    hooks[eventName] = entries
+                }
+            }
+            if hooks.isEmpty {
+                settings.removeValue(forKey: "hooks")
+            } else {
+                settings["hooks"] = hooks
+            }
+        }
+
+        // Write back
+        if let writeData = try? JSONSerialization.data(
+            withJSONObject: settings,
+            options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        ) {
+            try? writeData.write(to: URL(fileURLWithPath: effectiveSettingsPath))
+        }
+
+        // Clean up hooks directory and saved original
+        try? fm.removeItem(atPath: effectiveHooksDir)
+        try? fm.removeItem(atPath: effectiveOriginalPath)
+    }
+
+    private static func saveOriginalStatusLine(_ config: [String: Any], to path: String) {
+        let dir = (path as NSString).deletingLastPathComponent
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        if let data = try? JSONSerialization.data(
+            withJSONObject: config,
+            options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        ) {
+            try? data.write(to: URL(fileURLWithPath: path))
         }
     }
 }
