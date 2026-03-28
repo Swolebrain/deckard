@@ -39,6 +39,7 @@ jobs:
             -scheme Deckard \
             -configuration Debug \
             -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
             build
 
   test:
@@ -55,4 +56,5 @@ jobs:
           xcodebuild test \
             -project Deckard.xcodeproj \
             -scheme Deckard \
-            -destination 'platform=macOS'
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual
