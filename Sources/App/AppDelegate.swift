@@ -83,26 +83,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         log.log("startup", "=== Startup complete ===")
 
         // Check Full Disk Access and prompt if needed.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            guard !FullDiskAccessChecker.hasFullDiskAccess() else { return }
+        // Run the probe on a background thread to avoid blocking the main
+        // thread with Process.waitUntilExit(), then show the alert on main.
+        DispatchQueue.global(qos: .utility).async {
+            let hasFDA = FullDiskAccessChecker.hasFullDiskAccess()
+            guard !hasFDA else { return }
             guard !UserDefaults.standard.bool(forKey: "suppressFullDiskAccessPrompt") else { return }
 
-            let alert = NSAlert()
-            alert.alertStyle = .informational
-            alert.messageText = "Full Disk Access"
-            alert.informativeText = "Deckard is a terminal emulator. Like Terminal and iTerm2, it needs Full Disk Access so that commands running inside it can access all of your files.\n\nYou can grant this in System Settings > Privacy & Security > Full Disk Access."
-            alert.addButton(withTitle: "Open System Settings")
-            alert.addButton(withTitle: "Not Now")
-            alert.addButton(withTitle: "Don't Ask Again")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                guard let window = self?.windowController?.window else { return }
 
-            let response = alert.runModal()
-            switch response {
-            case .alertFirstButtonReturn:
-                FullDiskAccessChecker.openSettings()
-            case .alertThirdButtonReturn:
-                UserDefaults.standard.set(true, forKey: "suppressFullDiskAccessPrompt")
-            default:
-                break
+                let alert = NSAlert()
+                alert.alertStyle = .informational
+                alert.messageText = "Full Disk Access"
+                alert.informativeText = "Deckard is a terminal emulator. Like Terminal and iTerm2, it needs Full Disk Access so that commands running inside it can access all of your files.\n\nClick \"Open System Settings\" below, then use the \"+\" button to add Deckard (it will also be revealed in Finder so you can find it easily)."
+                alert.addButton(withTitle: "Open System Settings")
+                alert.addButton(withTitle: "Not Now")
+                alert.addButton(withTitle: "Don't Ask Again")
+
+                alert.beginSheetModal(for: window) { response in
+                    switch response {
+                    case .alertFirstButtonReturn:
+                        FullDiskAccessChecker.openSettings()
+                    case .alertThirdButtonReturn:
+                        UserDefaults.standard.set(true, forKey: "suppressFullDiskAccessPrompt")
+                    default:
+                        break
+                    }
+                }
             }
         }
     }
