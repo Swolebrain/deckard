@@ -618,7 +618,7 @@ class DeckardWindowController: NSWindowController, NSSplitViewDelegate {
             let extraArgsSuffix = extraArgs.isEmpty ? "" : " \(extraArgs)"
             var claudeArgs = extraArgsSuffix
             if let sessionIdToResume {
-                let encoded = project.path.replacingOccurrences(of: "/", with: "-")
+                let encoded = project.path.claudeProjectDirName
                 let jsonlPath = NSHomeDirectory() + "/.claude/projects/\(encoded)/\(sessionIdToResume).jsonl"
                 if FileManager.default.fileExists(atPath: jsonlPath) {
                     claudeArgs = " --resume \(sessionIdToResume)\(extraArgsSuffix)"

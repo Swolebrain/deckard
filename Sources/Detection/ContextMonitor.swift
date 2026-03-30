@@ -1,5 +1,13 @@
 import Foundation
 
+extension String {
+    /// Encodes a project path into the directory name Claude Code uses under `~/.claude/projects/`.
+    /// Resolves symlinks first so the encoded name matches the canonical path the CLI uses.
+    var claudeProjectDirName: String {
+        (self as NSString).resolvingSymlinksInPath.replacingOccurrences(of: "/", with: "-")
+    }
+}
+
 /// Reads Claude Code session JSONL files to calculate context usage.
 class ContextMonitor {
     static let shared = ContextMonitor()
@@ -34,7 +42,7 @@ class ContextMonitor {
 
     /// Lists all Claude sessions for a project, sorted by most recent first.
     func listSessions(forProjectPath projectPath: String) -> [SessionInfo] {
-        let encoded = projectPath.replacingOccurrences(of: "/", with: "-")
+        let encoded = projectPath.claudeProjectDirName
         let dir = NSHomeDirectory() + "/.claude/projects/\(encoded)"
         let fm = FileManager.default
 
@@ -93,7 +101,7 @@ class ContextMonitor {
     /// Get context usage for a session by reading its JSONL file.
     /// Only reads the tail of the file to find the most recent usage entry.
     func getUsage(sessionId: String, projectPath: String) -> ContextUsage? {
-        let encoded = projectPath.replacingOccurrences(of: "/", with: "-")
+        let encoded = projectPath.claudeProjectDirName
         let jsonlPath = NSHomeDirectory() + "/.claude/projects/\(encoded)/\(sessionId).jsonl"
 
         guard let fh = FileHandle(forReadingAtPath: jsonlPath) else { return nil }
