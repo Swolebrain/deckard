@@ -198,8 +198,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         fileMenu.addItem(closeItem)
 
         let newFolderItem = NSMenuItem(title: "New Sidebar Folder", action: #selector(createNewSidebarFolder), keyEquivalent: "")
+        newFolderItem.setShortcut(for: .newSidebarFolder)
         newFolderItem.target = self
         fileMenu.addItem(newFolderItem)
+
+        let moveOutItem = NSMenuItem(title: "Move Out of Folder", action: #selector(moveCurrentProjectOutOfFolder), keyEquivalent: "")
+        moveOutItem.setShortcut(for: .moveOutOfFolder)
+        moveOutItem.target = self
+        fileMenu.addItem(moveOutItem)
+
+        let exploreSessionsItem = NSMenuItem(title: "Explore Sessions", action: #selector(exploreSessions), keyEquivalent: "")
+        exploreSessionsItem.setShortcut(for: .exploreSessions)
+        fileMenu.addItem(exploreSessionsItem)
 
         let closeProjectItem = NSMenuItem(title: "Close Folder", action: #selector(closeCurrentProject), keyEquivalent: "")
         closeProjectItem.setShortcut(for: .closeFolder)
@@ -296,6 +306,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         windowController?.closeCurrentTab()
+    }
+
+    @objc private func exploreSessions() {
+        windowController?.exploreCurrentProjectSessions()
+    }
+
+    @objc private func moveCurrentProjectOutOfFolder() {
+        windowController?.moveCurrentProjectOutOfFolder()
     }
 
     @objc private func closeCurrentProject() {

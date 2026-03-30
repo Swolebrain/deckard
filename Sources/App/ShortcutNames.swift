@@ -11,6 +11,9 @@ extension KeyboardShortcuts.Name {
     static let nextProject = Self("nextProject", default: .init(.rightBracket, modifiers: [.command, .option]))
     static let previousProject = Self("previousProject", default: .init(.leftBracket, modifiers: [.command, .option]))
     static let toggleSidebar = Self("toggleSidebar", default: .init(.s, modifiers: [.command, .control]))
+    static let exploreSessions = Self("exploreSessions", default: .init(.e, modifiers: [.command, .shift]))
+    static let newSidebarFolder = Self("newSidebarFolder", default: .init(.n, modifiers: [.command, .option]))
+    static let moveOutOfFolder = Self("moveOutOfFolder", default: .init(.u, modifiers: [.command, .option]))
     static let settings = Self("settings", default: .init(.comma, modifiers: .command))
     static let tab1 = Self("tab1", default: .init(.one, modifiers: .command))
     static let tab2 = Self("tab2", default: .init(.two, modifiers: .command))
@@ -41,6 +44,9 @@ let configurableShortcuts: [ShortcutEntry] = [
     ShortcutEntry(name: .nextProject, label: "Next Project"),
     ShortcutEntry(name: .previousProject, label: "Previous Project"),
     ShortcutEntry(name: .toggleSidebar, label: "Toggle Sidebar"),
+    ShortcutEntry(name: .exploreSessions, label: "Explore Sessions"),
+    ShortcutEntry(name: .newSidebarFolder, label: "New Sidebar Folder"),
+    ShortcutEntry(name: .moveOutOfFolder, label: "Move Out of Folder"),
     ShortcutEntry(name: .settings, label: "Settings"),
     ShortcutEntry(name: .tab1, label: "Project 1"),
     ShortcutEntry(name: .tab2, label: "Project 2"),
