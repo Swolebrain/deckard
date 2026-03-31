@@ -110,16 +110,11 @@ class VerticalTabRowView: NSView, NSTextFieldDelegate, NSDraggingSource {
             $0.removeFromSuperview()
         }
         for info in badgeInfos where info.state != .none {
-            let dot = NSView()
-            dot.wantsLayer = true
-            dot.layer?.cornerRadius = 3.5
-            dot.layer?.backgroundColor = Self.colorForBadge(info.state).cgColor
+            let dot = BadgeShapeView(
+                shape: Self.shapeForBadge(info.state),
+                color: Self.colorForBadge(info.state)
+            )
             dot.toolTip = "\(info.name): \(Self.tooltipForBadge(info.state, activity: info.activity))"
-            dot.translatesAutoresizingMaskIntoConstraints = false
-            NSLayoutConstraint.activate([
-                dot.widthAnchor.constraint(equalToConstant: 7),
-                dot.heightAnchor.constraint(equalToConstant: 7),
-            ])
             if SettingsWindowController.isBadgeAnimated(info.state) {
                 Self.addPulseAnimation(to: dot)
             }
@@ -498,16 +493,11 @@ class SidebarFolderView: NSView, NSTextFieldDelegate, NSDraggingSource {
         // (individual project rows show their own badges)
         guard folder.isCollapsed else { return }
         for info in badgeInfos where info.state != .none {
-            let dot = NSView()
-            dot.wantsLayer = true
-            dot.layer?.cornerRadius = 3.5
-            dot.layer?.backgroundColor = VerticalTabRowView.colorForBadge(info.state).cgColor
+            let dot = BadgeShapeView(
+                shape: VerticalTabRowView.shapeForBadge(info.state),
+                color: VerticalTabRowView.colorForBadge(info.state)
+            )
             dot.toolTip = "\(info.name): \(VerticalTabRowView.tooltipForBadge(info.state, activity: info.activity))"
-            dot.translatesAutoresizingMaskIntoConstraints = false
-            NSLayoutConstraint.activate([
-                dot.widthAnchor.constraint(equalToConstant: 7),
-                dot.heightAnchor.constraint(equalToConstant: 7),
-            ])
             if SettingsWindowController.isBadgeAnimated(info.state) {
                 VerticalTabRowView.addPulseAnimation(to: dot)
             }
