@@ -35,6 +35,24 @@ class TabItem {
         case terminalCompletedUnseen // vivid teal - terminal finished while tab unfocused
     }
 
+    enum BadgeShape: String, CaseIterable {
+        case circle, square, diamond, triangleUp, triangleDown, cross, xCross, hexagon, star
+
+        var displayName: String {
+            switch self {
+            case .circle: return "Circle"
+            case .square: return "Square"
+            case .diamond: return "Diamond"
+            case .triangleUp: return "Triangle ▲"
+            case .triangleDown: return "Triangle ▼"
+            case .cross: return "Cross +"
+            case .xCross: return "Cross ×"
+            case .hexagon: return "Hexagon"
+            case .star: return "Star"
+            }
+        }
+    }
+
     init(surface: TerminalSurface, name: String, isClaude: Bool) {
         self.id = surface.surfaceId
         self.surface = surface
