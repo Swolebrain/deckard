@@ -115,7 +115,8 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextFie
 
         let grid = NSGridView(numberOfColumns: 2, rows: 0)
         grid.translatesAutoresizingMaskIntoConstraints = false
-        grid.column(at: 0).xPlacement = .leading
+        grid.column(at: 0).xPlacement = .trailing
+        grid.column(at: 0).width = 120
         grid.column(at: 1).xPlacement = .fill
         grid.rowSpacing = 6
         grid.columnSpacing = 8
@@ -124,14 +125,13 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextFie
         let extraArgsLabel = NSTextField(labelWithString: "Extra arguments:")
         extraArgsLabel.alignment = .right
 
-        let extraArgsField = NSTextField()
+        let extraArgsField = ClaudeArgsField(frame: NSRect(x: 0, y: 0, width: 400, height: 60))
         extraArgsField.stringValue = UserDefaults.standard.string(forKey: "claudeExtraArgs") ?? ""
-        extraArgsField.placeholderString = "--permission-mode auto"
-        extraArgsField.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-        objc_setAssociatedObject(extraArgsField, &settingsKeyAssoc, "claudeExtraArgs", .OBJC_ASSOCIATION_RETAIN)
-        extraArgsField.delegate = self
-        extraArgsField.target = self
-        extraArgsField.action = #selector(textFieldChanged(_:))
+        extraArgsField.translatesAutoresizingMaskIntoConstraints = false
+        extraArgsField.heightAnchor.constraint(greaterThanOrEqualToConstant: 36).isActive = true
+        extraArgsField.onChange = { newValue in
+            UserDefaults.standard.set(newValue, forKey: "claudeExtraArgs")
+        }
 
         grid.addRow(with: [extraArgsLabel, extraArgsField])
 

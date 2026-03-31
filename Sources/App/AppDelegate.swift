@@ -60,6 +60,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         log.log("startup", "Installing Claude Code hooks...")
         DeckardHooksInstaller.installIfNeeded()
 
+        // Parse Claude CLI flags for autocomplete in settings.
+        log.log("startup", "Loading Claude CLI flags...")
+        ClaudeCLIFlags.shared.load()
+
         // Clean up orphaned tmux sessions from previous runs
         if TerminalSurface.tmuxAvailable {
             let savedState = SessionManager.shared.load()
