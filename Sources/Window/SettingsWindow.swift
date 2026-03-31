@@ -713,7 +713,7 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextFie
                               _ entries: [(state: TabItem.BadgeState, label: String)]) -> NSView {
             let borderColor = NSColor.separatorColor.cgColor
             let rowHeight: CGFloat = 28
-            let colWidths: [CGFloat] = [120, 50, 50]  // state, color, blink
+            let colWidths: [CGFloat] = [120, 100, 50, 50]  // state, shape, color, blink
             let tableWidth = colWidths.reduce(0, +)
             let totalRows = 1 + entries.count
 
@@ -781,9 +781,11 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextFie
             var x: CGFloat = 0
             placeLabel("State", x: x, y: 0, width: colWidths[0], bold: true)
             x += colWidths[0]
-            placeLabel("Color", x: x, y: 0, width: colWidths[1], bold: true)
+            placeLabel("Shape", x: x, y: 0, width: colWidths[1], bold: true)
             x += colWidths[1]
-            placeLabel("Blink", x: x, y: 0, width: colWidths[2], bold: true)
+            placeLabel("Color", x: x, y: 0, width: colWidths[2], bold: true)
+            x += colWidths[2]
+            placeLabel("Blink", x: x, y: 0, width: colWidths[3], bold: true)
 
             addHLine(y: rowHeight)
 
@@ -800,8 +802,11 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextFie
 
                 placeLabel(entry.label, x: 0, y: y, width: colWidths[0])
 
+                let shapePopup = makeBadgeShapePopup(for: entry.state)
+                placeView(shapePopup, x: colWidths[0], y: y, width: colWidths[1])
+
                 let well = makeBadgeColorWell(for: entry.state)
-                placeView(well, x: colWidths[0], y: y, width: colWidths[1])
+                placeView(well, x: colWidths[0] + colWidths[1], y: y, width: colWidths[2])
 
                 let toggle = NSButton(checkboxWithTitle: "", target: self,
                                       action: #selector(badgeAnimateChanged(_:)))
@@ -809,7 +814,7 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextFie
                 toggle.controlSize = .small
                 objc_setAssociatedObject(toggle, &settingsKeyAssoc,
                                          entry.state.rawValue, .OBJC_ASSOCIATION_RETAIN)
-                placeView(toggle, x: colWidths[0] + colWidths[1], y: y, width: colWidths[2])
+                placeView(toggle, x: colWidths[0] + colWidths[1] + colWidths[2], y: y, width: colWidths[3])
 
                 addHLine(y: y + rowHeight)
             }
@@ -872,6 +877,36 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextFie
         return well
     }
 
+    private func makeBadgeShapePopup(for state: TabItem.BadgeState) -> NSPopUpButton {
+        let popup = NSPopUpButton(frame: .zero, pullsDown: false)
+        popup.controlSize = .small
+        popup.font = .systemFont(ofSize: 11)
+        popup.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            popup.widthAnchor.constraint(equalToConstant: 90),
+        ])
+        for shape in TabItem.BadgeShape.allCases {
+            popup.addItem(withTitle: shape.displayName)
+        }
+        let current = VerticalTabRowView.shapeForBadge(state)
+        popup.selectItem(withTitle: current.displayName)
+        objc_setAssociatedObject(popup, &settingsKeyAssoc, state.rawValue, .OBJC_ASSOCIATION_RETAIN)
+        popup.target = self
+        popup.action = #selector(badgeShapeChanged(_:))
+        return popup
+    }
+
+    @objc private func badgeShapeChanged(_ sender: NSPopUpButton) {
+        guard let stateRaw = objc_getAssociatedObject(sender, &settingsKeyAssoc) as? String,
+              let selectedTitle = sender.titleOfSelectedItem,
+              let shape = TabItem.BadgeShape.allCases.first(where: { $0.displayName == selectedTitle }) else { return }
+        UserDefaults.standard.set(shape.rawValue, forKey: "badgeShape.\(stateRaw)")
+        if let wc = NSApp.delegate as? AppDelegate {
+            wc.windowController?.rebuildSidebar()
+            wc.windowController?.rebuildTabBar()
+        }
+    }
+
     @objc private func badgeColorChanged(_ sender: NSColorWell) {
         guard let stateRaw = objc_getAssociatedObject(sender, &settingsKeyAssoc) as? String else { return }
         UserDefaults.standard.set(sender.color.toHex(), forKey: "badgeColor.\(stateRaw)")
@@ -895,6 +930,7 @@ class SettingsWindowController: NSWindowController, NSToolbarDelegate, NSTextFie
         for entry in Self.claudeBadgeEntries + Self.terminalBadgeEntries {
             UserDefaults.standard.removeObject(forKey: "badgeColor.\(entry.state.rawValue)")
             UserDefaults.standard.removeObject(forKey: "badgeAnimate.\(entry.state.rawValue)")
+            UserDefaults.standard.removeObject(forKey: "badgeShape.\(entry.state.rawValue)")
         }
         // Refresh the pane to show default colors
         switchToPane(.theme)
