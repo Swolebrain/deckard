@@ -105,6 +105,9 @@ class TerminalSurface: NSObject, LocalProcessTerminalViewDelegate {
         self.terminalView = DeckardTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         super.init()
         terminalView.processDelegate = self
+        // Let macOS handle Option+key for dead key / accent composition (é, ü, etc.)
+        // instead of sending ESC+letter sequences. Matches Terminal.app default behavior.
+        terminalView.optionAsMetaKey = false
         // Apply current theme colors
         ThemeManager.shared.currentScheme.apply(to: terminalView)
         // Apply saved font and scrollback
