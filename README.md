@@ -49,9 +49,14 @@ Ships with 486 built-in themes (Ghostty format) and loads custom themes from `~/
 
 <img src="docs/images/screenshot-themes.webp?v=1fb04fe4" alt="Theme settings with status indicators" width="500">
 
+### Context & quota tracking
+
+A progress bar shows context window usage. A sparkline visualizes token rate over time, and rate limit indicators show 5-hour and 7-day quota consumption.
+
+<img src="docs/images/screenshot-context-tracking.png?v=d0e0045b" alt="Context and quota tracking popover" width="250">
+
 ### More
 
-- **Context & quota tracking**: A progress bar shows context window usage. A sparkline visualizes token rate over time, and rate limit indicators show 5-hour and 7-day quota consumption.
 - **Session persistence**: Claude sessions resume via `--resume`. Tab structure and working directories are preserved across restarts.
 - **Customizable shortcuts**: All keyboard shortcuts are rebindable in Settings > Shortcuts.
 - **tmux integration**: When tmux is installed, terminal tabs are transparently wrapped in tmux sessions. Quit and relaunch Deckard to resume exactly where you left off — full shell state, scrollback, running processes, and environment preserved. tmux options are editable in Settings > Terminal. Works as a progressive enhancement; no tmux required.
