@@ -176,12 +176,14 @@ class VerticalTabRowView: NSView, NSTextFieldDelegate, NSDraggingSource {
         return defaultBadgeColors[state] ?? .systemGray
     }
 
+    static let defaultBadgeShapes: [TabItem.BadgeState: TabItem.BadgeShape] = [:]
+
     static func shapeForBadge(_ state: TabItem.BadgeState) -> TabItem.BadgeShape {
         if let raw = UserDefaults.standard.string(forKey: "badgeShape.\(state.rawValue)"),
            let shape = TabItem.BadgeShape(rawValue: raw) {
             return shape
         }
-        return .circle
+        return defaultBadgeShapes[state] ?? .circle
     }
 
     override func mouseDown(with event: NSEvent) {
