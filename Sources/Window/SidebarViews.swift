@@ -938,8 +938,11 @@ class BadgeShapeView: NSView {
                 let angle = CGFloat(i) * .pi / 3 - .pi / 6  // flat-top hexagon
                 let px = cx + r * cos(angle)
                 let py = cy + r * sin(angle)
-                if i == 0 { path.move(to: CGPoint(x: px, y: py)) }
-                else { path.addLine(to: CGPoint(x: px, y: py)) }
+                if i == 0 {
+                    path.move(to: CGPoint(x: px, y: py))
+                } else {
+                    path.addLine(to: CGPoint(x: px, y: py))
+                }
             }
             path.closeSubpath()
             return path
