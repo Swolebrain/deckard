@@ -771,9 +771,7 @@ class ReorderableStackView: NSStackView {
                 return true
             }
             let toIndex = dropIndex(for: sender)
-            if toIndex != fromIndex {
-                onReorder?(fromIndex, toIndex)
-            }
+            onReorder?(fromIndex, toIndex)
             return true
         }
 

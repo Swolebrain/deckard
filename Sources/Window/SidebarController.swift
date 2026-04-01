@@ -393,7 +393,7 @@ extension DeckardWindowController {
                 if case .project(let id) = $0, id == targetPid { return true }; return false
             }) {
                 let item = sidebarOrder.remove(at: fromOrderIdx)
-                let insertIdx = targetOrderIdx > fromOrderIdx ? targetOrderIdx : targetOrderIdx
+                let insertIdx = targetOrderIdx > fromOrderIdx ? targetOrderIdx - 1 : targetOrderIdx
                 sidebarOrder.insert(item, at: min(insertIdx, sidebarOrder.count))
             }
         }
