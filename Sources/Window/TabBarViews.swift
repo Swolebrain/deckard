@@ -15,6 +15,7 @@ class HorizontalTabView: NSView, NSTextFieldDelegate, NSDraggingSource {
     var onRename: ((String) -> Void)?
     var onClearName: (() -> Void)?
     var onEditingFinished: (() -> Void)?
+    var onClose: (() -> Void)?
     private var rawName: String
 
     private var displayTitle: String
@@ -173,6 +174,16 @@ class HorizontalTabView: NSView, NSTextFieldDelegate, NSDraggingSource {
 
     func controlTextDidEndEditing(_ obj: Notification) {
         finishEditing()
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        let menu = NSMenu()
+        menu.addItem(withTitle: "Close Tab", action: #selector(closeTabAction), keyEquivalent: "")
+        NSMenu.popUpContextMenu(menu, with: event, for: self)
+    }
+
+    @objc private func closeTabAction() {
+        onClose?()
     }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy sel: Selector) -> Bool {

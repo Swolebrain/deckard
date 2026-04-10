@@ -69,6 +69,12 @@ extension DeckardWindowController {
                 self.rebuildTabBar()
                 self.saveState()
             }
+            tabView.onClose = { [weak self] in
+                guard let self = self else { return }
+                let btn = NSButton()
+                btn.tag = i
+                self.tabBarCloseClicked(btn)
+            }
             tabView.onEditingFinished = { [weak self] in
                 guard let self = self, self.needsTabBarRebuild else { return }
                 self.needsTabBarRebuild = false
