@@ -73,6 +73,8 @@ class TerminalSurface: NSObject, LocalProcessTerminalViewDelegate {
     private let terminalView: DeckardTerminalView
     private var processExited = false
     private var pendingInitialInput: String?
+    /// Swallows keyboard events while the initial command hasn't been sent yet.
+    private var keyEventMonitor: Any?
     private var lastRestartTime: Date?
     /// Minimum interval between automatic restarts to prevent crash loops.
     private static let minRestartInterval: TimeInterval = 2.0
@@ -233,12 +235,24 @@ class TerminalSurface: NSObject, LocalProcessTerminalViewDelegate {
         DiagnosticLog.shared.log("surface",
             "startShell: surfaceId=\(surfaceId) shell=\(shell) pid=\(clientPid) tmux=\(useTmux) cwd=\(workingDirectory ?? "(nil)")")
 
-        // Send initial input after a short delay for shell readline to be ready
+        // Send initial input after a short delay for shell readline to be ready.
+        // Suppress keyboard events until then so stray keystrokes don't corrupt
+        // the command (e.g. user typing while a new Claude tab is starting).
         if let initialInput {
             pendingInitialInput = initialInput
+            let view = terminalView
+            keyEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                // Swallow key events targeting our terminal view's window.
+                if event.window === view.window { return nil }
+                return event
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 guard let self, let input = self.pendingInitialInput else { return }
                 self.pendingInitialInput = nil
+                if let monitor = self.keyEventMonitor {
+                    NSEvent.removeMonitor(monitor)
+                    self.keyEventMonitor = nil
+                }
                 self.sendInput(input)
             }
         }
@@ -255,6 +269,10 @@ class TerminalSurface: NSObject, LocalProcessTerminalViewDelegate {
     func terminate() {
         guard !processExited else { return }
         processExited = true
+        if let monitor = keyEventMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyEventMonitor = nil
+        }
         terminalView.process?.terminate()
         killTmuxSession()
     }
