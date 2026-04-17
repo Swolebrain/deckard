@@ -14,11 +14,12 @@ class ContextMonitor {
 
     private let contextLimits: [String: Int] = [
         "claude-opus-4-6": 1_000_000,
-        "claude-sonnet-4-6": 200_000,
+        "claude-opus-4-7": 1_000_000,
+        "claude-sonnet-4-6": 1_000_000,
         "claude-haiku-4-5": 200_000,
         "claude-haiku-4-5-20251001": 200_000,
     ]
-    private let defaultLimit = 200_000
+    private let defaultLimit = 1_000_000
 
     struct ContextUsage {
         let model: String

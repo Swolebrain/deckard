@@ -112,7 +112,7 @@ final class ContextMonitorTests: XCTestCase {
         XCTAssertEqual(usage?.model, "claude-sonnet-4-6")
         XCTAssertEqual(usage?.inputTokens, 100_000)
         XCTAssertEqual(usage?.cacheReadTokens, 50_000)
-        XCTAssertEqual(usage?.contextLimit, 200_000)
+        XCTAssertEqual(usage?.contextLimit, 1_000_000)
     }
 
     func testParseUsageSkipsZeroTokenEntries() {
@@ -157,7 +157,7 @@ final class ContextMonitorTests: XCTestCase {
         """
         let usage = ContextMonitor.shared.parseUsage(from: line)
         XCTAssertNotNil(usage)
-        XCTAssertEqual(usage?.contextLimit, 200_000)
+        XCTAssertEqual(usage?.contextLimit, 1_000_000)
     }
 
     func testParseUsageIgnoresInvalidJSON() {
@@ -175,7 +175,7 @@ final class ContextMonitorTests: XCTestCase {
 
     func testGetUsageFromFileBasic() throws {
         let path = makeTempJSONL(lines: [
-            assistantUsageLine(model: "claude-sonnet-4-6", input: 40_000, cacheRead: 10_000)
+            assistantUsageLine(model: "claude-haiku-4-5-20251001", input: 40_000, cacheRead: 10_000)
         ])
         let usage = ContextMonitor.shared.getUsageFromFile(at: path)
         XCTAssertNotNil(usage)
