@@ -152,6 +152,7 @@ jobs:
       - name: Generate Sparkle appcast
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           DMG="Deckard-${VERSION}.dmg"
@@ -184,6 +185,26 @@ jobs:
             SIG_ATTR="length=\"${DMG_SIZE}\""
           fi
 
+          # Extract this release's section from CHANGELOG.md and render to HTML
+          # so Sparkle's "What's New" pane shows it on update.
+          RELEASE_NOTES_MD=$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { in_section=1 }
+            in_section && /^## \[/ && $0 !~ "^## \\[" ver "\\]" { exit }
+            in_section { print }
+          ' CHANGELOG.md)
+
+          RELEASE_NOTES_HTML=""
+          if [ -n "$RELEASE_NOTES_MD" ]; then
+            # Degrade to empty notes rather than failing the release if the
+            # markdown API is unreachable.
+            RELEASE_NOTES_HTML=$(jq -Rs \
+              --arg ctx "${{ github.repository }}" \
+              '{mode:"gfm", context:$ctx, text:.}' <<< "$RELEASE_NOTES_MD" \
+              | gh api -X POST /markdown --input - || true)
+            # Neutralize any literal "]]>" so it can't prematurely close our CDATA.
+            RELEASE_NOTES_HTML="${RELEASE_NOTES_HTML//]]>/]]]]><![CDATA[>}"
+          fi
+
           cat > appcast.xml << APPCAST_EOF
           <?xml version="1.0" encoding="utf-8"?>
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -197,6 +218,7 @@ jobs:
                 <sparkle:version>${VERSION}</sparkle:version>
                 <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
                 <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+                <description><![CDATA[${RELEASE_NOTES_HTML}]]></description>
                 <enclosure url="${DMG_URL}" type="application/octet-stream" ${SIG_ATTR} />
               </item>
             </channel>
