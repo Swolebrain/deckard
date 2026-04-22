@@ -470,12 +470,13 @@ class ProjectPicker: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSTex
     }
 
     /// Decode a Claude Code project directory name back to a filesystem path.
-    /// Claude encodes both "/" and "." as "-", so "-Users-tibor-code-trogulja-trogulja-github-io"
-    /// must be decoded by finding which hyphens are path separators, dots, or literal dashes.
+    /// Claude encodes every non-`[A-Za-z0-9-]` character (including "/", ".", "_", spaces) as "-",
+    /// so "-Users-tibor-code-trogulja-trogulja-github-io" must be decoded by figuring out which
+    /// hyphens are path separators and which are encoded characters inside a single path component.
     /// Strategy: greedily build the path left-to-right, checking if each segment exists as a
-    /// directory. When the final path doesn't exist, scan the parent for an entry whose name
-    /// (with dots replaced by dashes) matches the last segment — this recovers dotted names
-    /// like "trogulja.github.io".
+    /// directory. When the final path doesn't exist, scan the parent for an entry whose
+    /// encoding-normalized name matches the last segment — this recovers names like
+    /// "trogulja.github.io" or "qcm8550_android13.0_ba01_r035".
     static func decodeCloudeProjectPath(_ encoded: String) -> String? {
         let stripped = encoded.hasPrefix("-") ? String(encoded.dropFirst()) : encoded
         let parts = stripped.components(separatedBy: "-")
@@ -504,12 +505,16 @@ class ProjectPicker: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSTex
             return decoded
         }
 
-        // The final segment may contain dashes that were originally dots.
-        // Scan the parent directory for an entry whose dot-normalized name matches.
+        // The final segment may contain dashes that were originally other characters
+        // (".", "_", space, etc.). Scan the parent for an entry whose encoded name matches.
         if fm.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue,
            let entries = try? fm.contentsOfDirectory(atPath: path) {
             for entry in entries {
-                let normalized = entry.replacingOccurrences(of: ".", with: "-")
+                let normalized = entry.replacingOccurrences(
+                    of: "[^A-Za-z0-9-]",
+                    with: "-",
+                    options: .regularExpression
+                )
                 if normalized == segment {
                     return path + "/" + entry
                 }

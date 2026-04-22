@@ -373,6 +373,17 @@ final class ContextMonitorTests: XCTestCase {
         XCTAssertFalse(path.claudeProjectDirName.contains("/"))
     }
 
+    func testClaudeProjectDirNameEncodesDotsUnderscoresAndOtherSpecials() {
+        // The Claude CLI replaces every non-[A-Za-z0-9-] character with "-".
+        // This includes ".", "_", and spaces — not just "/".
+        let path = "/Volumes/Android/source/qcm8550_android13.0_ba01_r035"
+        XCTAssertEqual(path.claudeProjectDirName,
+                       "-Volumes-Android-source-qcm8550-android13-0-ba01-r035")
+
+        let spaced = "/Users/test/My Project"
+        XCTAssertEqual(spaced.claudeProjectDirName, "-Users-test-My-Project")
+    }
+
     func testClaudeProjectDirNameIdempotentOnCanonicalPath() throws {
         let tempDir = NSTemporaryDirectory() + "deckard-dirname-\(UUID().uuidString)"
         let realDir = tempDir + "/project"
